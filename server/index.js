@@ -17,13 +17,45 @@ app.get("/api/case", (req, res) => res.json(caseData));
 // rooms[code] = {
 //   code, phase: 'lobby'|'briefing'|'investigation'|'accusation'|'ending',
 //   players: { A: {socketId, name, connected}, B: {...} },
-//   found: { A: [clueId...], B: [clueId...] },   // clues each role has revealed
+//   found: { A: [clueId...], B: [clueId...] },   // real clues each role has revealed
+//   flavorSeen: { A: [hotspotId...], B: [...] }, // flavor-only hotspots already examined
+//   puzzlesSolved: { supplyCloset: false, ... },
+//   actUnlocked: 1,                              // bumps to 2 once enough is found
 //   board: { pins: {clueId: {x,y}}, links: [[id,id]] },
 //   chat: [{role, name, text, ts}],
 //   accusationDraft: { suspect, location, motive, readyA, readyB },
 //   result: null
 // }
 const rooms = new Map();
+
+function findHotspot(hotspotId) {
+  for (const loc of caseData.locations) {
+    const h = loc.hotspots.find((x) => x.id === hotspotId);
+    if (h) return h;
+  }
+  for (const p of caseData.people) {
+    const h = p.hotspots.find((x) => x.id === hotspotId);
+    if (h) return h;
+  }
+  return null;
+}
+
+function pinPositionFor(room, clueId) {
+  const totalFound = room.found.A.length + room.found.B.length;
+  const col = totalFound % 4;
+  const row = Math.floor(totalFound / 4);
+  return { x: 14 + col * 22, y: 18 + row * 28 };
+}
+
+function addClueToRoom(room, role, clueId) {
+  if (room.found[role].includes(clueId)) return;
+  room.found[role].push(clueId);
+  room.board.pins[clueId] = pinPositionFor(room, clueId);
+  const act1Found = room.found.A.filter((id) => /^A[1-6]$/.test(id)).length + room.found.B.filter((id) => /^B[1-6]$/.test(id)).length;
+  if (room.actUnlocked < 2 && act1Found >= caseData.actUnlockThreshold) {
+    room.actUnlocked = 2;
+  }
+}
 
 function makeRoomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -40,6 +72,9 @@ function freshRoom(code) {
     phase: "lobby",
     players: { A: null, B: null },
     found: { A: [], B: [] },
+    flavorSeen: { A: [], B: [] },
+    puzzlesSolved: {},
+    actUnlocked: 1,
     board: { pins: {}, links: [] },
     chat: [],
     accusationDraft: { suspect: null, location: null, motive: null, readyA: false, readyB: false },
@@ -56,6 +91,9 @@ function publicRoomState(room) {
       B: room.players.B ? { name: room.players.B.name, connected: room.players.B.connected } : null
     },
     found: room.found,
+    flavorSeen: room.flavorSeen,
+    puzzlesSolved: room.puzzlesSolved,
+    actUnlocked: room.actUnlocked,
     board: room.board,
     chat: room.chat,
     accusationDraft: room.accusationDraft,
@@ -115,15 +153,34 @@ io.on("connection", (socket) => {
   socket.on("clue:found", ({ clueId }) => {
     const room = rooms.get(joinedCode);
     if (!room || !joinedRole) return;
-    if (!room.found[joinedRole].includes(clueId)) {
-      room.found[joinedRole].push(clueId);
-      // default pin position: staggered grid so new cards don't stack exactly
-      const totalFound = room.found.A.length + room.found.B.length;
-      const col = totalFound % 4;
-      const row = Math.floor(totalFound / 4);
-      room.board.pins[clueId] = { x: 14 + col * 22, y: 18 + row * 28 };
+    addClueToRoom(room, joinedRole, clueId);
+    broadcast(room);
+  });
+
+  socket.on("flavor:seen", ({ hotspotId }) => {
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole) return;
+    if (!room.flavorSeen[joinedRole].includes(hotspotId)) {
+      room.flavorSeen[joinedRole].push(hotspotId);
     }
     broadcast(room);
+  });
+
+  socket.on("puzzle:attempt", ({ puzzleId, code, hotspotId }, cb) => {
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole) return cb && cb({ ok: false, error: "No active case." });
+    const puzzle = caseData.puzzles[puzzleId];
+    if (!puzzle) return cb && cb({ ok: false, error: "Unknown puzzle." });
+    if (String(code || "").trim() !== puzzle.code) {
+      return cb && cb({ ok: false, error: "That's not it." });
+    }
+    room.puzzlesSolved[puzzleId] = true;
+    const hotspot = findHotspot(hotspotId);
+    if (hotspot && hotspot.clueId) {
+      addClueToRoom(room, joinedRole, hotspot.clueId);
+    }
+    broadcast(room);
+    cb && cb({ ok: true, clueId: hotspot ? hotspot.clueId : null });
   });
 
   socket.on("board:move", ({ clueId, x, y }) => {
@@ -193,6 +250,9 @@ io.on("connection", (socket) => {
     if (!room) return;
     room.phase = "briefing";
     room.found = { A: [], B: [] };
+    room.flavorSeen = { A: [], B: [] };
+    room.puzzlesSolved = {};
+    room.actUnlocked = 1;
     room.board = { pins: {}, links: [] };
     room.accusationDraft = { suspect: null, location: null, motive: null, readyA: false, readyB: false };
     room.result = null;

@@ -83,10 +83,13 @@
       <span class="role-pill" id="my-role-pill"></span>
       <span class="partner-status" id="partner-status"></span>
       <span class="case-progress" id="case-progress"></span>
+      <button class="btn ghost small" id="btn-open-files">Case Files</button>
       <button class="btn ghost small" id="btn-goto-accuse">Make the Call</button>
       <a href="#" class="leave-case" title="Leave this case">Leave</a>
     </div>
   </header>
+
+  <div id="unlock-banner" class="unlock-banner"></div>
 
   <main class="game-main">
     <section class="leads-panel">
@@ -122,6 +125,39 @@
     <h3 id="clue-modal-title"></h3>
     <p id="clue-modal-text"></p>
     <button class="btn primary" id="clue-modal-close">Pin to Board</button>
+  </div>
+</div>
+
+<!-- SCREEN: Scene modal (a location/person you're currently exploring) -->
+<div id="scene-modal" class="modal-overlay">
+  <div class="modal-card scene-card">
+    <button class="modal-x" id="scene-modal-close" aria-label="Close">&times;</button>
+    <div class="modal-kicker" id="scene-modal-kicker"></div>
+    <h3 id="scene-modal-title"></h3>
+    <p class="scene-blurb" id="scene-modal-blurb"></p>
+    <div id="scene-hotspots" class="scene-hotspots"></div>
+    <div id="scene-flavor-reveal" class="scene-flavor-reveal"></div>
+  </div>
+</div>
+
+<!-- SCREEN: Case files gallery -->
+<div id="files-modal" class="modal-overlay">
+  <div class="modal-card files-card">
+    <button class="modal-x" id="files-modal-close" aria-label="Close">&times;</button>
+    <div class="modal-kicker">SHARED CASE FILE</div>
+    <h3>Everything you've found</h3>
+    <div id="files-grid" class="files-grid"></div>
+  </div>
+</div>
+
+<!-- SCREEN: Document reader (opens a single file full-size) -->
+<div id="doc-modal" class="modal-overlay">
+  <div class="modal-card doc-reader" id="doc-reader-card">
+    <button class="modal-x" id="doc-modal-close" aria-label="Close">&times;</button>
+    <div class="doc-type-tag" id="doc-type-tag"></div>
+    <h3 id="doc-title"></h3>
+    <div class="doc-source" id="doc-source"></div>
+    <p id="doc-text"></p>
   </div>
 </div>
 

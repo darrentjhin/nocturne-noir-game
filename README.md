@@ -8,10 +8,10 @@ A two-player online noir detective game, built from scratch (original story, art
 
 You and your partner play **two different detectives working the same case from different angles**:
 
-- **Detective A — "The Street"** investigates physical locations (a theatre, a studio, an apartment, the docks).
-- **Detective B — "The Desk"** investigates people (interviews and paper trails on four suspects).
+- **Detective A — "The Street"** explores physical locations — walk into a scene and examine multiple hotspots (desks, drawers, booths, lockers), not just click-and-read.
+- **Detective B — "The Desk"** works people — interviews, bank statements, personnel files, permits.
 
-Each of you finds different clues. They land on a **shared corkboard in real time**, where you drag cards around and draw string connections between them, plus a live chat line — so you actually have to talk to each other to solve it. At the end, you make one joint accusation together.
+Each location/person is a small scene with several things to examine: some hand over a real clue, some are pure atmosphere/flavor, and **one is physically locked** — the 3-digit code is buried in a document only the *other* detective can find, so you have to actually radio it over. A second act of leads (two more locations/people) unlocks mid-case once you've both found enough. Everything you find is browsable anytime in a proper **Case Files** gallery, styled by document type (ledger, transcript, photo, ticket, form...), plus the shared **corkboard** for drawing connections between clues in real time. At the end, you make one joint accusation together.
 
 ## Run it
 

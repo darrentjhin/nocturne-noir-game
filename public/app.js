@@ -9,9 +9,10 @@
   let latestState = null;
   let linkMode = false;
   let linkSelectFirst = null;
-  let openLeadId = null; // location/person id currently showing its clue list
-  let pendingClueId = null; // clue just clicked, waiting to be "pinned" via modal close
+  let pendingClueId = null; // clue just revealed, waiting to be "pinned" via modal close
   let topZ = 10;
+  let currentSceneLeadId = null; // which location/person the scene modal is currently showing
+  let lastActUnlocked = 1;
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -117,11 +118,6 @@
   });
 
   function render(state) {
-    // Lobby slots
-    if (state.phase === "lobby" || (!$("#screen-lobby").classList.contains("active") === false)) {
-      updateLobby(state);
-    }
-
     if (state.phase === "lobby") {
       showScreen("screen-lobby");
       updateLobby(state);
@@ -187,24 +183,37 @@
     socket.emit("phase:advance", { phase: "investigation" });
   });
 
-  // ---------- Investigation ----------
+  // ---------- Clue index (built once caseData arrives) ----------
+  // clueMeta[clueId] = { ...clueText, ownerRole, parentName, parentId }
+  const clueMeta = {};
+  function buildClueMeta() {
+    caseData.locations.forEach((loc) => {
+      loc.hotspots.forEach((h) => {
+        if (h.clueId) {
+          clueMeta[h.clueId] = { ...caseData.clueText[h.clueId], ownerRole: "A", parentName: loc.name, parentId: loc.id };
+        }
+      });
+    });
+    caseData.people.forEach((p) => {
+      p.hotspots.forEach((h) => {
+        if (h.clueId) {
+          clueMeta[h.clueId] = { ...caseData.clueText[h.clueId], ownerRole: "B", parentName: p.name, parentId: p.id };
+        }
+      });
+    });
+  }
+
   function leadsForMyRole() {
     return myRole === "A" ? caseData.locations : caseData.people;
   }
 
-  function allCluesFlat() {
-    const list = [];
-    caseData.locations.forEach((l) => l.clues.forEach((c) => list.push({ ...c, ownerRole: "A", parent: l.name })));
-    caseData.people.forEach((p) => p.clues.forEach((c) => list.push({ ...c, ownerRole: "B", parent: p.name })));
-    return list;
-  }
-  const clueIndex = {};
-  function buildClueIndex() {
-    allCluesFlat().forEach((c) => (clueIndex[c.id] = c));
+  function hotspotCountable(h) {
+    return h.type === "clue" || h.type === "locked";
   }
 
+  // ---------- Investigation ----------
   function renderInvestigation(state) {
-    if (!Object.keys(clueIndex).length) buildClueIndex();
+    if (!Object.keys(clueMeta).length) buildClueMeta();
 
     $("#my-role-pill").textContent = caseData.roles[myRole].name;
     const partner = myRole === "A" ? state.players.B : state.players.A;
@@ -220,39 +229,183 @@
       ps.className = "partner-status offline";
     }
 
-    const totalClues = caseData.locations.reduce((n, l) => n + l.clues.length, 0) + caseData.people.reduce((n, p) => n + p.clues.length, 0);
+    const totalClues = Object.keys(caseData.clueText).length;
     const foundTotal = state.found.A.length + state.found.B.length;
     $("#case-progress").textContent = `${foundTotal}/${totalClues} clues`;
+
+    maybeShowUnlockBanner(state);
 
     $("#leads-title").textContent = myRole === "A" ? "Locations" : "People";
     const leadsList = $("#leads-list");
     leadsList.innerHTML = "";
     const myFound = state.found[myRole];
+    const myFlavor = state.flavorSeen[myRole] || [];
+
     leadsForMyRole().forEach((lead) => {
-      const foundCount = lead.clues.filter((c) => myFound.includes(c.id)).length;
-      const exhausted = foundCount === lead.clues.length;
+      const locked = lead.act === 2 && state.actUnlocked < 2;
       const div = document.createElement("div");
-      div.className = "lead-item" + (exhausted ? " exhausted" : "");
+
+      if (locked) {
+        div.className = "lead-item locked";
+        div.innerHTML = `
+          <div class="lead-name">🔒 New lead</div>
+          <div class="lead-blurb">Keep digging — this opens up once you two have found more.</div>
+        `;
+        leadsList.appendChild(div);
+        return;
+      }
+
+      const countable = lead.hotspots.filter(hotspotCountable);
+      const foundCount = countable.filter((h) => myFound.includes(h.clueId)).length;
+      const allSeen = lead.hotspots.every((h) => (hotspotCountable(h) ? myFound.includes(h.clueId) : myFlavor.includes(h.id)));
+
+      div.className = "lead-item" + (allSeen ? " exhausted" : "");
       div.innerHTML = `
         <div class="lead-name">${lead.name}${lead.role ? " — " + lead.role : ""}</div>
         <div class="lead-blurb">${lead.blurb}</div>
-        <div class="lead-progress">${foundCount}/${lead.clues.length} clues found</div>
+        <div class="lead-progress">${foundCount}/${countable.length} clues found${allSeen ? " · fully explored" : ""}</div>
       `;
-      div.addEventListener("click", () => openLead(lead, myFound));
+      div.addEventListener("click", () => openScene(lead));
       leadsList.appendChild(div);
     });
+
+    if (currentSceneLeadId) {
+      const lead = leadsForMyRole().find((l) => l.id === currentSceneLeadId);
+      if (lead) renderScene(lead, state);
+    }
 
     renderCorkboard(state);
     renderChat(state);
   }
 
-  function openLead(lead, myFound) {
-    const next = lead.clues.find((c) => !myFound.includes(c.id));
-    if (!next) return; // fully explored
-    pendingClueId = next.id;
-    $("#clue-modal-kicker").textContent = lead.name.toUpperCase();
-    $("#clue-modal-title").textContent = next.title;
-    $("#clue-modal-text").textContent = next.text;
+  function maybeShowUnlockBanner(state) {
+    if (state.actUnlocked > lastActUnlocked) {
+      const banner = $("#unlock-banner");
+      banner.textContent = "🗞️ New leads have opened up across the city.";
+      banner.classList.add("show");
+      setTimeout(() => banner.classList.remove("show"), 5500);
+    }
+    lastActUnlocked = state.actUnlocked;
+  }
+
+  // ---------- Scene modal (examine a location/person) ----------
+  function openScene(lead) {
+    currentSceneLeadId = lead.id;
+    $("#scene-flavor-reveal").innerHTML = "";
+    renderScene(lead, latestState);
+    $("#scene-modal").classList.add("active");
+  }
+
+  $("#scene-modal-close").addEventListener("click", () => {
+    $("#scene-modal").classList.remove("active");
+    currentSceneLeadId = null;
+  });
+
+  function renderScene(lead, state) {
+    const myFound = state.found[myRole];
+    const myFlavor = state.flavorSeen[myRole] || [];
+
+    $("#scene-modal-kicker").textContent = (lead.role ? lead.role.toUpperCase() : "LOCATION");
+    $("#scene-modal-title").textContent = lead.name;
+    $("#scene-modal-blurb").textContent = lead.blurb;
+
+    const container = $("#scene-hotspots");
+    container.innerHTML = "";
+
+    lead.hotspots.forEach((h) => {
+      const row = document.createElement("div");
+      row.className = "hotspot-row";
+
+      if (h.type === "clue") {
+        const done = myFound.includes(h.clueId);
+        row.className += done ? " hotspot-done" : "";
+        row.innerHTML = `
+          <button class="hotspot-btn" type="button">
+            <span class="hotspot-icon">${done ? "✓" : "🔎"}</span>
+            <span class="hotspot-label">${h.label}</span>
+            ${done ? '<span class="hotspot-tag">examined</span>' : ""}
+          </button>
+        `;
+        row.querySelector(".hotspot-btn").addEventListener("click", () => {
+          if (done) {
+            openDoc(h.clueId);
+          } else {
+            revealClue(h.clueId, lead.name);
+          }
+        });
+      } else if (h.type === "flavor") {
+        const seen = myFlavor.includes(h.id);
+        row.className += seen ? " hotspot-done" : "";
+        row.innerHTML = `
+          <button class="hotspot-btn" type="button">
+            <span class="hotspot-icon">${seen ? "•" : "👁"}</span>
+            <span class="hotspot-label">${h.label}</span>
+          </button>
+          <div class="hotspot-inline-text" style="display:${seen ? "block" : "none"}">${h.text}</div>
+        `;
+        row.querySelector(".hotspot-btn").addEventListener("click", () => {
+          const textEl = row.querySelector(".hotspot-inline-text");
+          const willShow = textEl.style.display === "none";
+          textEl.style.display = willShow ? "block" : "none";
+          if (willShow && !seen) {
+            socket.emit("flavor:seen", { hotspotId: h.id });
+          }
+        });
+      } else if (h.type === "locked") {
+        const solved = !!state.puzzlesSolved[h.puzzleId];
+        const done = solved && myFound.includes(h.clueId);
+        row.className += done ? " hotspot-done" : " hotspot-locked";
+        if (done) {
+          row.innerHTML = `
+            <button class="hotspot-btn" type="button">
+              <span class="hotspot-icon">✓</span>
+              <span class="hotspot-label">${h.label}</span>
+              <span class="hotspot-tag">unlocked</span>
+            </button>
+          `;
+          row.querySelector(".hotspot-btn").addEventListener("click", () => openDoc(h.clueId));
+        } else {
+          row.innerHTML = `
+            <div class="hotspot-btn hotspot-btn-static">
+              <span class="hotspot-icon">🔒</span>
+              <span class="hotspot-label">${h.label}</span>
+            </div>
+            <div class="lock-hint">${h.lockedHint || "Locked."}</div>
+            <form class="lock-form">
+              <input type="text" maxlength="8" placeholder="Code..." class="lock-input" />
+              <button type="submit" class="btn primary small">Try</button>
+            </form>
+            <div class="lock-error"></div>
+          `;
+          const form = row.querySelector(".lock-form");
+          form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const input = row.querySelector(".lock-input");
+            const errEl = row.querySelector(".lock-error");
+            socket.emit("puzzle:attempt", { puzzleId: h.puzzleId, code: input.value, hotspotId: h.id }, (res) => {
+              if (res && res.ok) {
+                errEl.textContent = "";
+                if (res.clueId) revealClue(res.clueId, lead.name, { alreadyFound: true });
+              } else {
+                errEl.textContent = (res && res.error) || "Wrong code.";
+                input.value = "";
+              }
+            });
+          });
+        }
+      }
+
+      container.appendChild(row);
+    });
+  }
+
+  function revealClue(clueId, parentName, opts) {
+    opts = opts || {};
+    pendingClueId = opts.alreadyFound ? null : clueId;
+    const meta = clueMeta[clueId] || caseData.clueText[clueId];
+    $("#clue-modal-kicker").textContent = (parentName || "").toUpperCase();
+    $("#clue-modal-title").textContent = meta.title;
+    $("#clue-modal-text").textContent = meta.text;
     $("#clue-modal").classList.add("active");
   }
 
@@ -264,15 +417,59 @@
     $("#clue-modal").classList.remove("active");
   });
 
+  // ---------- Case Files gallery ----------
+  $("#btn-open-files").addEventListener("click", () => {
+    renderFilesGrid();
+    $("#files-modal").classList.add("active");
+  });
+  $("#files-modal-close").addEventListener("click", () => $("#files-modal").classList.remove("active"));
+
+  function renderFilesGrid() {
+    const grid = $("#files-grid");
+    grid.innerHTML = "";
+    const allFound = [...latestState.found.A, ...latestState.found.B];
+    if (!allFound.length) {
+      grid.innerHTML = '<div class="files-empty">Nothing filed yet. Go examine something.</div>';
+      return;
+    }
+    allFound.forEach((clueId) => {
+      const meta = clueMeta[clueId];
+      const tile = document.createElement("div");
+      tile.className = "file-tile";
+      tile.innerHTML = `
+        <div class="file-tile-type">${docTypeIcon(meta.docType)} ${meta.docType}</div>
+        <div class="file-tile-title">${meta.title}</div>
+        <div class="file-tile-source">${meta.parentName}</div>
+      `;
+      tile.addEventListener("click", () => openDoc(clueId));
+      grid.appendChild(tile);
+    });
+  }
+
+  function docTypeIcon(type) {
+    return { ticket: "🎟️", evidence: "🔍", note: "📝", photo: "🖼️", form: "📋", ledger: "📒", transcript: "🗣️" }[type] || "📄";
+  }
+
+  function openDoc(clueId) {
+    const meta = clueMeta[clueId];
+    const card = $("#doc-reader-card");
+    card.className = "modal-card doc-reader doctype-" + meta.docType;
+    $("#doc-type-tag").textContent = docTypeIcon(meta.docType) + " " + meta.docType.toUpperCase();
+    $("#doc-title").textContent = meta.title;
+    $("#doc-source").textContent = "Found at: " + meta.parentName;
+    $("#doc-text").textContent = meta.text;
+    $("#doc-modal").classList.add("active");
+  }
+  $("#doc-modal-close").addEventListener("click", () => $("#doc-modal").classList.remove("active"));
+
   // ---------- Corkboard ----------
   function renderCorkboard(state) {
     const board = $("#corkboard");
-    // remove old pin cards (keep svg)
     $$(".pin-card").forEach((el) => el.remove());
 
     const allFoundIds = [...state.found.A, ...state.found.B];
     allFoundIds.forEach((clueId) => {
-      const clue = clueIndex[clueId];
+      const clue = clueMeta[clueId];
       const pos = state.board.pins[clueId] || { x: 50, y: 50 };
       const card = document.createElement("div");
       card.className = "pin-card";
@@ -282,7 +479,7 @@
       card.innerHTML = `
         <div class="pin-title">${clue.title}</div>
         <div class="pin-text">${clue.text}</div>
-        <div class="pin-owner">${clue.parent}</div>
+        <div class="pin-owner">${clue.parentName}</div>
       `;
       wireCardDrag(card, board);
       card.addEventListener("click", (e) => {
@@ -333,7 +530,6 @@
       }
     }
 
-    // Mouse (desktop)
     card.addEventListener("mousedown", (e) => {
       start(e.clientX, e.clientY);
       e.preventDefault();
@@ -341,7 +537,6 @@
     window.addEventListener("mousemove", (e) => move(e.clientX, e.clientY));
     window.addEventListener("mouseup", end);
 
-    // Touch (phones/tablets)
     card.addEventListener(
       "touchstart",
       (e) => {
@@ -409,7 +604,6 @@
 
   function redrawLinksFromDom() {
     if (!latestState) return;
-    // Recompute using DOM positions for the currently-dragged card by rebuilding from latestState + live style
     const svg = $("#link-svg");
     const board = $("#corkboard");
     const rect = board.getBoundingClientRect();
