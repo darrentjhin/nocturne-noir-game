@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>NOCTURNE — A Two-Detective Case</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕵️</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Special+Elite&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="grain"></div>
+
+<!-- SCREEN: Landing -->
+<section id="screen-landing" class="screen active">
+  <div class="landing-wrap">
+    <h1 class="title">NOCTURNE</h1>
+    <p class="subtitle">a two-detective case</p>
+    <div class="tagline">The city doesn't give up the truth to just one of you.</div>
+
+    <div class="card-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="create">Open a Case</button>
+        <button class="tab" data-tab="join">Join a Case</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-create">
+        <label>Your name</label>
+        <input type="text" id="create-name" maxlength="24" placeholder="Detective..." />
+        <button class="btn primary" id="btn-create">Open New Case</button>
+      </div>
+
+      <div class="tab-panel" id="tab-join">
+        <label>Your name</label>
+        <input type="text" id="join-name" maxlength="24" placeholder="Detective..." />
+        <label>Case Code</label>
+        <input type="text" id="join-code" maxlength="5" placeholder="ABCDE" style="text-transform:uppercase" />
+        <button class="btn primary" id="btn-join">Join Case</button>
+      </div>
+
+      <div id="landing-error" class="error-msg"></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREEN: Lobby (waiting for partner) -->
+<section id="screen-lobby" class="screen">
+  <div class="landing-wrap">
+    <h1 class="title small">CASE OPEN</h1>
+    <p class="subtitle">share this code with your partner</p>
+    <div class="case-code" id="lobby-code">-----</div>
+    <div class="lobby-players">
+      <div class="lobby-slot" id="lobby-slot-A">Detective A — waiting...</div>
+      <div class="lobby-slot" id="lobby-slot-B">Detective B — waiting...</div>
+    </div>
+    <p class="hint">The game begins automatically once you're both in.</p>
+    <p class="hint"><a href="#" class="leave-case">Not your case? Leave</a></p>
+  </div>
+</section>
+
+<!-- SCREEN: Briefing -->
+<section id="screen-briefing" class="screen">
+  <div class="landing-wrap wide">
+    <h1 class="title small">THE LAST REEL</h1>
+    <p class="subtitle" id="briefing-headline"></p>
+    <div class="briefing-body" id="briefing-body"></div>
+    <div class="role-callout" id="role-callout"></div>
+    <button class="btn primary" id="btn-begin">Begin Investigation</button>
+  </div>
+</section>
+
+<!-- SCREEN: Investigation -->
+<section id="screen-investigation" class="screen">
+  <header class="game-header">
+    <div class="game-header-left">
+      <span class="brand">NOCTURNE</span>
+      <span class="case-name">The Last Reel</span>
+    </div>
+    <div class="game-header-right">
+      <span class="role-pill" id="my-role-pill"></span>
+      <span class="partner-status" id="partner-status"></span>
+      <span class="case-progress" id="case-progress"></span>
+      <button class="btn ghost small" id="btn-goto-accuse">Make the Call</button>
+      <a href="#" class="leave-case" title="Leave this case">Leave</a>
+    </div>
+  </header>
+
+  <main class="game-main">
+    <section class="leads-panel">
+      <h2 id="leads-title">Leads</h2>
+      <div id="leads-list" class="leads-list"></div>
+    </section>
+
+    <section class="board-panel">
+      <div class="board-panel-head">
+        <h2>Case Board <span class="hint-inline">shared — drag cards, click two to link them</span></h2>
+        <button class="btn ghost small" id="btn-link-mode">Link Mode: Off</button>
+      </div>
+      <div id="corkboard" class="corkboard">
+        <svg id="link-svg"></svg>
+      </div>
+    </section>
+
+    <section class="chat-panel">
+      <h2>Radio Line</h2>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <input type="text" id="chat-input" maxlength="500" placeholder="Say something to your partner..." autocomplete="off" />
+        <button class="btn primary small" type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+</section>
+
+<!-- SCREEN: Clue modal -->
+<div id="clue-modal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-kicker" id="clue-modal-kicker"></div>
+    <h3 id="clue-modal-title"></h3>
+    <p id="clue-modal-text"></p>
+    <button class="btn primary" id="clue-modal-close">Pin to Board</button>
+  </div>
+</div>
+
+<!-- SCREEN: Accusation -->
+<section id="screen-accusation" class="screen">
+  <div class="landing-wrap wide">
+    <h1 class="title small">MAKE THE CALL</h1>
+    <p class="subtitle">Talk it through. When you both agree, submit together.</p>
+
+    <div class="accuse-grid">
+      <div class="accuse-col">
+        <h3>Who</h3>
+        <div id="accuse-suspects" class="accuse-options"></div>
+      </div>
+      <div class="accuse-col">
+        <h3>Where</h3>
+        <div id="accuse-locations" class="accuse-options"></div>
+      </div>
+      <div class="accuse-col">
+        <h3>Why</h3>
+        <div id="accuse-motives" class="accuse-options"></div>
+      </div>
+    </div>
+
+    <div class="ready-row">
+      <label class="ready-check"><input type="checkbox" id="ready-A" /> Detective A ready</label>
+      <label class="ready-check"><input type="checkbox" id="ready-B" /> Detective B ready</label>
+    </div>
+    <button class="btn ghost small" id="btn-back-to-board">Back to the board</button>
+  </div>
+</section>
+
+<!-- SCREEN: Ending -->
+<section id="screen-ending" class="screen">
+  <div class="landing-wrap wide">
+    <h1 class="title small" id="ending-title"></h1>
+    <div class="briefing-body" id="ending-body"></div>
+    <button class="btn primary" id="btn-restart">Play Again</button>
+  </div>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
