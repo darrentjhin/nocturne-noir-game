@@ -13,9 +13,13 @@
 <body>
 
 <div id="grain"></div>
+<div id="rain-overlay"></div>
+
+<button id="sound-toggle" class="sound-toggle" title="Toggle ambient rain" aria-label="Toggle ambient sound">🔇</button>
 
 <!-- SCREEN: Landing -->
 <section id="screen-landing" class="screen active">
+  <div class="hero-art" id="hero-art"></div>
   <div class="landing-wrap">
     <h1 class="title">NOCTURNE</h1>
     <p class="subtitle">a two-detective case</p>
@@ -63,6 +67,7 @@
 
 <!-- SCREEN: Briefing -->
 <section id="screen-briefing" class="screen">
+  <div class="hero-art hero-art-dim" id="hero-art-briefing"></div>
   <div class="landing-wrap wide">
     <h1 class="title small">THE LAST REEL</h1>
     <p class="subtitle" id="briefing-headline"></p>
@@ -133,7 +138,10 @@
   <div class="modal-card scene-card">
     <button class="modal-x" id="scene-modal-close" aria-label="Close">&times;</button>
     <div class="modal-kicker" id="scene-modal-kicker"></div>
-    <h3 id="scene-modal-title"></h3>
+    <div class="scene-header">
+      <div class="scene-icon" id="scene-modal-icon"></div>
+      <h3 id="scene-modal-title"></h3>
+    </div>
     <p class="scene-blurb" id="scene-modal-blurb"></p>
     <div id="scene-hotspots" class="scene-hotspots"></div>
     <div id="scene-flavor-reveal" class="scene-flavor-reveal"></div>
@@ -200,6 +208,7 @@
 </section>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="icons.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

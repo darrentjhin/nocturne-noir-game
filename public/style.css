@@ -36,6 +36,71 @@ html, body {
   mix-blend-mode: overlay;
 }
 
+/* Animated rain streaks, drifting over the whole app */
+#rain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 998;
+  opacity: 0.35;
+  background-image: repeating-linear-gradient(
+    100deg,
+    rgba(216, 74, 94, 0) 0px,
+    rgba(216, 74, 94, 0) 3px,
+    rgba(233, 224, 210, 0.06) 4px,
+    rgba(233, 224, 210, 0) 5px
+  );
+  background-size: 3px 140px;
+  animation: rainfall 0.55s linear infinite;
+}
+@keyframes rainfall {
+  from { background-position: 0 0; }
+  to { background-position: -40px 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #rain-overlay { animation: none; opacity: 0.15; }
+}
+
+.sound-toggle {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 1000;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  color: var(--ink-dim);
+  font-size: 17px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+.sound-toggle:hover { border-color: var(--red-bright); }
+.sound-toggle.on { color: var(--gold); border-color: var(--gold); }
+
+.hero-art {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: clamp(220px, 42vw, 420px);
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.hero-art svg { width: 100%; height: 100%; display: block; }
+.hero-art-dim { opacity: 0.32; }
+.hero-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10,9,8,0) 0%, rgba(10,9,8,0.2) 60%, var(--bg) 96%);
+}
+.screen { position: relative; }
+.landing-wrap { position: relative; z-index: 1; }
+
 .screen {
   display: none;
   min-height: 100vh;
@@ -264,8 +329,14 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
   border-radius: 3px;
   padding: 12px;
   cursor: pointer;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
 }
 .lead-item:hover { border-color: var(--red); }
+.lead-icon { width: 30px; height: 30px; flex-shrink: 0; color: var(--gold); opacity: 0.85; margin-top: 2px; }
+.lead-icon svg { width: 100%; height: 100%; }
+.lead-item-body { flex: 1; min-width: 0; }
 .lead-item .lead-name { font-weight: bold; color: var(--ink); font-size: 14px; }
 .lead-item .lead-blurb { color: var(--ink-dim); font-size: 12px; margin-top: 4px; line-height: 1.4; }
 .lead-item .lead-progress { margin-top: 8px; font-size: 11px; color: var(--gold); letter-spacing: 1px; }
@@ -401,7 +472,11 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 
 /* ---------- Scene modal (examine a location/person) ---------- */
 .scene-card { max-width: 560px; text-align: left; }
-.scene-blurb { color: var(--ink-dim); font-size: 14px; line-height: 1.6; margin: 0 0 18px; font-style: italic; }
+.scene-header { display: flex; align-items: center; gap: 16px; margin-bottom: 4px; }
+.scene-icon { width: 52px; height: 52px; flex-shrink: 0; color: var(--gold); }
+.scene-icon svg { width: 100%; height: 100%; }
+.scene-header h3 { margin: 0; }
+.scene-blurb { color: var(--ink-dim); font-size: 14px; line-height: 1.6; margin: 10px 0 18px; font-style: italic; }
 .scene-hotspots { display: flex; flex-direction: column; gap: 10px; }
 
 .hotspot-row {
@@ -444,14 +519,16 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .lock-form { display: flex; gap: 8px; padding: 0 12px 10px 42px; }
 .lock-input {
   flex: 1;
+  min-width: 90px;
   background: #0d0c0a;
   border: 1px solid var(--line);
   color: var(--ink);
-  padding: 8px 10px;
+  padding: 10px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 18px;
   border-radius: 3px;
-  letter-spacing: 2px;
+  letter-spacing: 4px;
+  text-align: center;
 }
 .lock-error { padding: 0 12px 10px 42px; color: var(--red-bright); font-size: 12px; min-height: 14px; }
 

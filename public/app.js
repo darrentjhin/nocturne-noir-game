@@ -17,6 +17,77 @@
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+  // ---------- Hero art ----------
+  if (typeof HERO_SVG !== "undefined") {
+    const h1 = document.getElementById("hero-art");
+    const h2 = document.getElementById("hero-art-briefing");
+    if (h1) h1.innerHTML = HERO_SVG;
+    if (h2) h2.innerHTML = HERO_SVG;
+  }
+  function iconFor(id) {
+    return typeof ICONS !== "undefined" && ICONS[id] ? ICONS[id] : "";
+  }
+
+  // ---------- Ambient sound (synthesized, no audio files / credits needed) ----------
+  const Ambience = (function () {
+    let ctx = null;
+    let rainSource = null;
+    let masterGain = null;
+    let on = false;
+
+    function ensureCtx() {
+      if (ctx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ctx = new AC();
+      masterGain = ctx.createGain();
+      masterGain.gain.value = 0;
+      masterGain.connect(ctx.destination);
+
+      // Filtered noise buffer, looped, for a soft rain hiss
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        last = (last + 0.02 * white) / 1.02;
+        data[i] = last * 3.2; // brownish noise, gentler than white noise
+      }
+      rainSource = ctx.createBufferSource();
+      rainSource.buffer = buffer;
+      rainSource.loop = true;
+
+      const lowpass = ctx.createBiquadFilter();
+      lowpass.type = "lowpass";
+      lowpass.frequency.value = 1200;
+
+      rainSource.connect(lowpass);
+      lowpass.connect(masterGain);
+      rainSource.start(0);
+    }
+
+    function toggle() {
+      ensureCtx();
+      if (!ctx) return false;
+      on = !on;
+      if (ctx.state === "suspended") ctx.resume();
+      masterGain.gain.linearRampToValueAtTime(on ? 0.16 : 0, ctx.currentTime + 0.6);
+      return on;
+    }
+
+    return { toggle };
+  })();
+
+  const soundBtn = document.getElementById("sound-toggle");
+  if (soundBtn) {
+    soundBtn.addEventListener("click", () => {
+      const isOn = Ambience.toggle();
+      soundBtn.textContent = isOn ? "🔊" : "🔇";
+      soundBtn.classList.toggle("on", isOn);
+    });
+  }
+
   function showScreen(id) {
     $$(".screen").forEach((s) => s.classList.remove("active"));
     $("#" + id).classList.add("active");
@@ -248,8 +319,11 @@
       if (locked) {
         div.className = "lead-item locked";
         div.innerHTML = `
-          <div class="lead-name">🔒 New lead</div>
-          <div class="lead-blurb">Keep digging — this opens up once you two have found more.</div>
+          <div class="lead-icon">🔒</div>
+          <div class="lead-item-body">
+            <div class="lead-name">New lead</div>
+            <div class="lead-blurb">Keep digging — this opens up once you two have found more.</div>
+          </div>
         `;
         leadsList.appendChild(div);
         return;
@@ -261,9 +335,12 @@
 
       div.className = "lead-item" + (allSeen ? " exhausted" : "");
       div.innerHTML = `
-        <div class="lead-name">${lead.name}${lead.role ? " — " + lead.role : ""}</div>
-        <div class="lead-blurb">${lead.blurb}</div>
-        <div class="lead-progress">${foundCount}/${countable.length} clues found${allSeen ? " · fully explored" : ""}</div>
+        <div class="lead-icon">${iconFor(lead.id)}</div>
+        <div class="lead-item-body">
+          <div class="lead-name">${lead.name}${lead.role ? " — " + lead.role : ""}</div>
+          <div class="lead-blurb">${lead.blurb}</div>
+          <div class="lead-progress">${foundCount}/${countable.length} clues found${allSeen ? " · fully explored" : ""}</div>
+        </div>
       `;
       div.addEventListener("click", () => openScene(lead));
       leadsList.appendChild(div);
@@ -306,6 +383,7 @@
     const myFlavor = state.flavorSeen[myRole] || [];
 
     $("#scene-modal-kicker").textContent = (lead.role ? lead.role.toUpperCase() : "LOCATION");
+    $("#scene-modal-icon").innerHTML = iconFor(lead.id);
     $("#scene-modal-title").textContent = lead.name;
     $("#scene-modal-blurb").textContent = lead.blurb;
 
@@ -372,7 +450,7 @@
             </div>
             <div class="lock-hint">${h.lockedHint || "Locked."}</div>
             <form class="lock-form">
-              <input type="text" maxlength="8" placeholder="Code..." class="lock-input" />
+              <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" placeholder="Code..." class="lock-input" />
               <button type="submit" class="btn primary small">Try</button>
             </form>
             <div class="lock-error"></div>
