@@ -1,6 +1,8 @@
 # NOCTURNE — "The Last Reel"
 
-A two-player online noir detective game, built from scratch (original story, art direction, and code — not a clone of any existing game).
+**Play now: https://nocturne-noir-game-production.up.railway.app**
+
+A two-player online noir detective game, built from scratch (original story, art direction, and code — not a clone of any existing game). Deployed on Railway, auto-redeploys on every push to `main`.
 
 ## The twist
 
