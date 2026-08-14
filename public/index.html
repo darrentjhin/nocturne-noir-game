@@ -74,6 +74,7 @@
     <div class="briefing-body" id="briefing-body"></div>
     <div class="role-callout" id="role-callout"></div>
     <button class="btn primary" id="btn-begin">Begin Investigation</button>
+    <p class="hint"><a href="#" id="link-how-to-play">Not sure how this works? See how to play</a></p>
   </div>
 </section>
 
@@ -88,6 +89,7 @@
       <span class="role-pill" id="my-role-pill"></span>
       <span class="partner-status" id="partner-status"></span>
       <span class="case-progress" id="case-progress"></span>
+      <button class="btn ghost small" id="btn-how-to-play" title="How to play">? How to Play</button>
       <button class="btn ghost small" id="btn-open-files">Case Files</button>
       <button class="btn ghost small" id="btn-goto-accuse">Make the Call</button>
       <a href="#" class="leave-case" title="Leave this case">Leave</a>
@@ -166,6 +168,23 @@
     <h3 id="doc-title"></h3>
     <div class="doc-source" id="doc-source"></div>
     <p id="doc-text"></p>
+  </div>
+</div>
+
+<!-- SCREEN: How to Play tutorial -->
+<div id="tutorial-modal" class="modal-overlay">
+  <div class="modal-card tutorial-card">
+    <button class="modal-x" id="tutorial-close" aria-label="Close">&times;</button>
+    <div class="modal-kicker">HOW TO PLAY</div>
+    <div class="tutorial-icon" id="tutorial-icon"></div>
+    <h3 id="tutorial-title"></h3>
+    <p id="tutorial-body"></p>
+    <div class="tutorial-dots" id="tutorial-dots"></div>
+    <div class="tutorial-nav">
+      <button class="btn ghost small" id="tutorial-back">Back</button>
+      <button class="btn ghost small" id="tutorial-skip">Skip</button>
+      <button class="btn primary small" id="tutorial-next">Next</button>
+    </div>
   </div>
 </div>
 

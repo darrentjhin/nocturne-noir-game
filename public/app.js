@@ -94,6 +94,82 @@
     $("#" + id).classList.add("active");
   }
 
+  // ---------- Tutorial ----------
+  const TUTORIAL_SEEN_KEY = "nocturne_tutorial_seen";
+  const tutorialSteps = [
+    {
+      icon: "🕵️",
+      title: "Two detectives, one case",
+      body: "You and your partner play different roles. One of you walks the city — knocking on doors, searching rooms. The other works the desk — reading files, interviewing suspects. You each see a different half of the case, and neither of you sees the whole thing alone."
+    },
+    {
+      icon: "🔎",
+      title: "Investigate",
+      body: "Click a location or person on your list (the left panel) to open it up. Inside, you'll see a few things to examine — click each one. Most hand you a real clue. Some are just flavor, no clue attached. One is locked."
+    },
+    {
+      icon: "📌",
+      title: "The Case Board",
+      body: "Every clue either of you finds gets pinned to the shared Case Board in the middle, live, for both of you to see. Drag cards around, and click two cards in a row to draw a red string between them — just like a real conspiracy board."
+    },
+    {
+      icon: "🔒",
+      title: "You need each other",
+      body: "One thing in the case is locked behind a 3-digit code. You won't find that code — your partner will, hidden inside something only they can examine. Use the Radio Line (the chat, on the right) to actually talk and share what you've each found."
+    },
+    {
+      icon: "☎️",
+      title: "Make the Call",
+      body: "Once you both think you know who did it, where, and why, hit \"Make the Call.\" Pick your answer together — the button only submits once you've both checked \"ready\" on the same answer."
+    }
+  ];
+  let tutorialStep = 0;
+
+  function renderTutorialStep() {
+    const s = tutorialSteps[tutorialStep];
+    $("#tutorial-icon").textContent = s.icon;
+    $("#tutorial-title").textContent = s.title;
+    $("#tutorial-body").textContent = s.body;
+    $("#tutorial-dots").innerHTML = tutorialSteps
+      .map((_, i) => `<span class="tutorial-dot${i === tutorialStep ? " active" : ""}"></span>`)
+      .join("");
+    $("#tutorial-back").disabled = tutorialStep === 0;
+    $("#tutorial-next").textContent = tutorialStep === tutorialSteps.length - 1 ? "Let's go" : "Next";
+  }
+
+  function openTutorial(fromStep) {
+    tutorialStep = fromStep || 0;
+    renderTutorialStep();
+    $("#tutorial-modal").classList.add("active");
+    try {
+      localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+    } catch (e) {}
+  }
+
+  $("#tutorial-next").addEventListener("click", () => {
+    if (tutorialStep === tutorialSteps.length - 1) {
+      $("#tutorial-modal").classList.remove("active");
+      return;
+    }
+    tutorialStep++;
+    renderTutorialStep();
+  });
+  $("#tutorial-back").addEventListener("click", () => {
+    if (tutorialStep === 0) return;
+    tutorialStep--;
+    renderTutorialStep();
+  });
+  $("#tutorial-skip").addEventListener("click", () => $("#tutorial-modal").classList.remove("active"));
+  $("#tutorial-close").addEventListener("click", () => $("#tutorial-modal").classList.remove("active"));
+  $("#btn-how-to-play").addEventListener("click", () => openTutorial(0));
+  const howToPlayLink = document.getElementById("link-how-to-play");
+  if (howToPlayLink) {
+    howToPlayLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      openTutorial(0);
+    });
+  }
+
   function saveSession(code, role, name) {
     try {
       localStorage.setItem(SESSION_KEY, JSON.stringify({ code, role, name }));
@@ -224,7 +300,20 @@
   function render(state) {
     if (state.phase !== lastPhase) {
       closeAllModals();
+      const enteringInvestigation = state.phase === "investigation" && lastPhase !== null;
       lastPhase = state.phase;
+      if (enteringInvestigation) {
+        let seen = null;
+        try {
+          seen = localStorage.getItem(TUTORIAL_SEEN_KEY);
+        } catch (e) {}
+        if (!seen) {
+          // Let the investigation screen actually render underneath first —
+          // popping the tutorial in the same tick it feels instantaneous but
+          // slightly jarring; a beat later reads as intentional.
+          setTimeout(() => openTutorial(0), 350);
+        }
+      }
     }
 
     if (state.phase === "lobby") {
