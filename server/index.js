@@ -121,13 +121,32 @@ io.on("connection", (socket) => {
     const room = rooms.get(code);
     if (!room) return cb && cb({ ok: false, error: "No case open with that code." });
 
-    // Auto-assign role if not specified or taken
+    // A slot is takeable if it's empty OR its previous occupant disconnected
+    // (e.g. hit "Leave", closed the tab, or lost signal) — not just empty.
+    // Without the connected check, anyone who left could never rejoin their
+    // own case: the slot object still exists, just idle.
+    const isAvailable = (r) => !room.players[r] || !room.players[r].connected;
+
     let takeRole = role;
-    if (!takeRole || (room.players[takeRole] && room.players[takeRole].connected)) {
-      takeRole = !room.players.A ? "A" : !room.players.B ? "B" : null;
+    if (!takeRole || !isAvailable(takeRole)) {
+      takeRole = isAvailable("A") ? "A" : isAvailable("B") ? "B" : null;
     }
-    if (!takeRole || (room.players[takeRole] && room.players[takeRole].connected)) {
+    if (!takeRole || !isAvailable(takeRole)) {
       return cb && cb({ ok: false, error: "Both detectives are already on this case." });
+    }
+
+    // A single socket switching from one case to another (e.g. an auto-resumed
+    // session followed by the player manually joining a different code) must
+    // leave its old Socket.IO room first. Otherwise it stays subscribed to
+    // both rooms' broadcasts at once, and state from the old case bleeds into
+    // the new one on screen.
+    if (joinedCode && joinedCode !== code) {
+      socket.leave(joinedCode);
+      const oldRoom = rooms.get(joinedCode);
+      if (oldRoom && joinedRole && oldRoom.players[joinedRole]) {
+        oldRoom.players[joinedRole].connected = false;
+        broadcast(oldRoom);
+      }
     }
 
     room.players[takeRole] = { socketId: socket.id, name: name || `Detective ${takeRole}`, connected: true };

@@ -13,6 +13,7 @@
   let topZ = 10;
   let currentSceneLeadId = null; // which location/person the scene modal is currently showing
   let lastActUnlocked = 1;
+  let lastPhase = null;
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -118,10 +119,12 @@
       $$(".tab-panel").forEach((p) => p.classList.remove("active"));
       tab.classList.add("active");
       $("#tab-" + tab.dataset.tab).classList.add("active");
+      showError("");
     });
   });
 
-  $("#btn-create").addEventListener("click", () => {
+  function doCreate() {
+    showError("");
     const name = $("#create-name").value.trim() || "Detective";
     socket.emit("room:create", { name }, (res) => {
       if (!res.ok) return showError(res.error);
@@ -130,9 +133,10 @@
         onJoined(res2);
       });
     });
-  });
+  }
 
-  $("#btn-join").addEventListener("click", () => {
+  function doJoin() {
+    showError("");
     const name = $("#join-name").value.trim() || "Detective";
     const code = $("#join-code").value.trim().toUpperCase();
     if (!code) return showError("Enter a case code.");
@@ -140,6 +144,19 @@
       if (!res.ok) return showError(res.error);
       onJoined(res);
     });
+  }
+
+  $("#btn-create").addEventListener("click", doCreate);
+  $("#btn-join").addEventListener("click", doJoin);
+
+  // Enter submits from any landing input, matching normal form expectations
+  ["create-name"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("keydown", (e) => e.key === "Enter" && doCreate());
+  });
+  ["join-name", "join-code"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("keydown", (e) => e.key === "Enter" && doJoin());
   });
 
   function showError(msg) {
@@ -184,11 +201,32 @@
 
   // ---------- State rendering ----------
   socket.on("room:state", (state) => {
+    // Defense in depth: if this socket is (even momentarily) associated with
+    // more than one room server-side, ignore broadcasts for any case other
+    // than the one we're actually looking at.
+    if (myCode && state.code !== myCode) return;
     latestState = state;
     render(state);
   });
 
+  // Modal overlays live outside the .screen sections, so switching screens
+  // never auto-hides them. Only clear them on a real phase change — not on
+  // every state broadcast — otherwise a modal you're actively reading would
+  // slam shut every time your partner so much as sends a chat message.
+  function closeAllModals() {
+    $$(".modal-overlay").forEach((m) => m.classList.remove("active"));
+    currentSceneLeadId = null;
+    linkMode = false;
+    linkSelectFirst = null;
+    pendingClueId = null;
+  }
+
   function render(state) {
+    if (state.phase !== lastPhase) {
+      closeAllModals();
+      lastPhase = state.phase;
+    }
+
     if (state.phase === "lobby") {
       showScreen("screen-lobby");
       updateLobby(state);
@@ -382,6 +420,17 @@
     const myFound = state.found[myRole];
     const myFlavor = state.flavorSeen[myRole] || [];
 
+    // A state broadcast can arrive from something your partner did that has
+    // nothing to do with this scene (a chat message, a card drag). Rebuilding
+    // the hotspot list from scratch on every one of those would blow away
+    // whatever you're mid-typing into a lock code field. Snapshot any typed
+    // (not-yet-submitted) code input before the rebuild and restore it after.
+    const inProgressCodes = {};
+    $$(".lock-input").forEach((inp) => {
+      const hid = inp.closest(".hotspot-row") && inp.closest(".hotspot-row").dataset.hotspotId;
+      if (hid && inp.value) inProgressCodes[hid] = inp.value;
+    });
+
     $("#scene-modal-kicker").textContent = (lead.role ? lead.role.toUpperCase() : "LOCATION");
     $("#scene-modal-icon").innerHTML = iconFor(lead.id);
     $("#scene-modal-title").textContent = lead.name;
@@ -393,6 +442,7 @@
     lead.hotspots.forEach((h) => {
       const row = document.createElement("div");
       row.className = "hotspot-row";
+      row.dataset.hotspotId = h.id;
 
       if (h.type === "clue") {
         const done = myFound.includes(h.clueId);
@@ -412,23 +462,23 @@
           }
         });
       } else if (h.type === "flavor") {
+        // Once examined, flavor text stays visible permanently (same pattern
+        // as an "examined" clue) — no toggle-to-hide, so there's nothing for
+        // an unrelated re-render to inconsistently snap back open or shut.
         const seen = myFlavor.includes(h.id);
         row.className += seen ? " hotspot-done" : "";
         row.innerHTML = `
-          <button class="hotspot-btn" type="button">
+          <button class="hotspot-btn" type="button" ${seen ? "disabled" : ""}>
             <span class="hotspot-icon">${seen ? "•" : "👁"}</span>
             <span class="hotspot-label">${h.label}</span>
           </button>
-          <div class="hotspot-inline-text" style="display:${seen ? "block" : "none"}">${h.text}</div>
+          ${seen ? `<div class="hotspot-inline-text">${h.text}</div>` : ""}
         `;
-        row.querySelector(".hotspot-btn").addEventListener("click", () => {
-          const textEl = row.querySelector(".hotspot-inline-text");
-          const willShow = textEl.style.display === "none";
-          textEl.style.display = willShow ? "block" : "none";
-          if (willShow && !seen) {
+        if (!seen) {
+          row.querySelector(".hotspot-btn").addEventListener("click", () => {
             socket.emit("flavor:seen", { hotspotId: h.id });
-          }
-        });
+          });
+        }
       } else if (h.type === "locked") {
         const solved = !!state.puzzlesSolved[h.puzzleId];
         const done = solved && myFound.includes(h.clueId);
@@ -455,6 +505,8 @@
             </form>
             <div class="lock-error"></div>
           `;
+          const restoreVal = inProgressCodes[h.id];
+          if (restoreVal) row.querySelector(".lock-input").value = restoreVal;
           const form = row.querySelector(".lock-form");
           form.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -463,7 +515,7 @@
             socket.emit("puzzle:attempt", { puzzleId: h.puzzleId, code: input.value, hotspotId: h.id }, (res) => {
               if (res && res.ok) {
                 errEl.textContent = "";
-                if (res.clueId) revealClue(res.clueId, lead.name, { alreadyFound: true });
+                if (res.clueId) revealClue(res.clueId, lead.name, { alreadyFound: true, viaPuzzle: true });
               } else {
                 errEl.textContent = (res && res.error) || "Wrong code.";
                 input.value = "";
@@ -481,9 +533,10 @@
     opts = opts || {};
     pendingClueId = opts.alreadyFound ? null : clueId;
     const meta = clueMeta[clueId] || caseData.clueText[clueId];
-    $("#clue-modal-kicker").textContent = (parentName || "").toUpperCase();
+    $("#clue-modal-kicker").textContent = opts.viaPuzzle ? "UNLOCKED" : (parentName || "").toUpperCase();
     $("#clue-modal-title").textContent = meta.title;
     $("#clue-modal-text").textContent = meta.text;
+    $("#clue-modal-close").textContent = opts.alreadyFound ? "Got it" : "Pin to Board";
     $("#clue-modal").classList.add("active");
   }
 
@@ -780,8 +833,14 @@
       motivesEl.appendChild(opt);
     });
 
+    const nameA = (state.players.A && state.players.A.name) || "Detective A";
+    const nameB = (state.players.B && state.players.B.name) || "Detective B";
+    $("#ready-A-label").textContent = nameA + " ready" + (myRole === "A" ? " (you)" : "");
+    $("#ready-B-label").textContent = nameB + " ready" + (myRole === "B" ? " (you)" : "");
     $("#ready-A").checked = draft.readyA;
     $("#ready-B").checked = draft.readyB;
+    $("#ready-A").disabled = myRole !== "A";
+    $("#ready-B").disabled = myRole !== "B";
   }
 
   $("#ready-A").addEventListener("change", (e) => {

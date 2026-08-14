@@ -18,7 +18,7 @@ html, body {
   background: var(--bg);
   color: var(--ink);
   font-family: 'Special Elite', 'Courier New', monospace;
-  height: 100%;
+  min-height: 100%;
   overflow-x: hidden;
 }
 
@@ -380,7 +380,6 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .pin-card:active { cursor: grabbing; }
 .pin-card .pin-title { font-weight: bold; color: var(--gold); font-size: 12px; margin-bottom: 3px; }
 .pin-card .pin-text { color: var(--ink-dim); }
-.pin-card.linkable { outline: 2px dashed var(--red-bright); }
 .pin-card.selected { outline: 2px solid var(--red-bright); }
 .pin-card .pin-owner { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--red-bright); margin-top: 4px; }
 
@@ -431,9 +430,11 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .accuse-option:hover { border-color: var(--red-bright); }
 .accuse-option.selected { border-color: var(--red); background: rgba(185,39,63,0.15); color: var(--ink); }
 
-.ready-row { display: flex; justify-content: center; gap: 30px; margin: 20px 0; }
+.ready-row { display: flex; justify-content: center; gap: 30px; margin: 20px 0; flex-wrap: wrap; }
 .ready-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-dim); cursor: pointer; }
 .ready-check input { width: 18px; height: 18px; }
+.ready-check input:disabled { cursor: default; opacity: 0.55; }
+.ready-check:has(input:disabled) { cursor: default; }
 
 #screen-ending .title.small { color: var(--gold); }
 
@@ -505,6 +506,8 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .hotspot-btn:hover { color: var(--red-bright); }
 .hotspot-btn-static { cursor: default; }
 .hotspot-btn-static:hover { color: var(--ink); }
+.hotspot-btn:disabled { cursor: default; color: var(--ink); opacity: 0.8; }
+.hotspot-btn:disabled:hover { color: var(--ink); }
 .hotspot-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
 .hotspot-label { flex: 1; }
 .hotspot-tag { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); }

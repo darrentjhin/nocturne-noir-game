@@ -32,16 +32,16 @@
       </div>
 
       <div class="tab-panel active" id="tab-create">
-        <label>Your name</label>
+        <label for="create-name">Your name</label>
         <input type="text" id="create-name" maxlength="24" placeholder="Detective..." />
         <button class="btn primary" id="btn-create">Open New Case</button>
       </div>
 
       <div class="tab-panel" id="tab-join">
-        <label>Your name</label>
+        <label for="join-name">Your name</label>
         <input type="text" id="join-name" maxlength="24" placeholder="Detective..." />
-        <label>Case Code</label>
-        <input type="text" id="join-code" maxlength="5" placeholder="ABCDE" style="text-transform:uppercase" />
+        <label for="join-code">Case Code</label>
+        <input type="text" id="join-code" maxlength="5" placeholder="ABCDE" style="text-transform:uppercase" autocapitalize="characters" />
         <button class="btn primary" id="btn-join">Join Case</button>
       </div>
 
@@ -191,8 +191,8 @@
     </div>
 
     <div class="ready-row">
-      <label class="ready-check"><input type="checkbox" id="ready-A" /> Detective A ready</label>
-      <label class="ready-check"><input type="checkbox" id="ready-B" /> Detective B ready</label>
+      <label class="ready-check"><input type="checkbox" id="ready-A" /> <span id="ready-A-label">Detective A ready</span></label>
+      <label class="ready-check"><input type="checkbox" id="ready-B" /> <span id="ready-B-label">Detective B ready</span></label>
     </div>
     <button class="btn ghost small" id="btn-back-to-board">Back to the board</button>
   </div>
