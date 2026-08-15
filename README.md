@@ -1,38 +1,68 @@
-# NOCTURNE — "The Last Reel"
+# NOCTURNE — Two-Detective Case Files
 
 **Play now: https://nocturne-noir-game-production.up.railway.app**
 
-A two-player online noir detective game, built from scratch (original story, art direction, and code — not a clone of any existing game). Deployed on Railway, auto-redeploys on every push to `main`.
+NOCTURNE is an original online mystery series for exactly two players on separate devices. The same detectives return across connected cases, but every file uses a different cooperative gameplay structure. The project is deployed on Railway and auto-redeploys when `main` is pushed.
 
-## The twist
+## The detectives
 
-You and your partner play **two different detectives working the same case from different angles**:
+- **The Street** works inside the danger: physical scenes, access, reconstruction, and field decisions.
+- **The Desk** works the invisible system: people, records, contradictions, identities, and remote guidance.
 
-- **Detective A — "The Street"** explores physical locations — walk into a scene and examine multiple hotspots (desks, drawers, booths, lockers), not just click-and-read.
-- **Detective B — "The Desk"** works people — interviews, bank statements, personnel files, permits.
+Each player receives private information. The server sends neither role the partner's private copy, and hidden answers stay server-side until they are legitimately earned or revealed at the ending.
 
-The two roles play differently. The Street chooses a reconstruction focus at each physical scene, tests whether objects answer that question, and uses earlier field notes to open deeper searches. The Desk conducts face-to-face, portrait-driven interviews by choosing Rapport, Direct, Pressure, or Present Evidence; presenting evidence now requires selecting the exact filed document that supports the question. A poor read changes the subject's composure but never permanently locks progress. Broad questions open follow-ups, testimony releases records, and evidence from the Street unlocks confrontations.
+## File 01 — The Last Reel
 
-One scene is physically locked — its 3-digit code is buried in a document only the *other* detective can earn, so you have to radio it over. A second act of leads unlocks mid-case. Filed evidence remains searchable in **Case Files**. Three shared **Case Threads** require placing multiple clues into distinct reasoning roles; the **Evidence Board** is reserved for defensible links that eliminate two plausible suspects. Players must also break two interview contradictions before making a joint four-part accusation.
+**Type:** evidence investigation · **Length:** roughly 50–70 minutes
 
-The interface tracks leads as **New, Active, Waiting, or Complete** without solving them for the player. Incorrect Case Threads identify one weak reasoning role, repeated mistakes or a long stall unlock an optional nudge, and the locked final-call control explains every unfinished requirement. The compact **Radio Line** includes quick requests and turns filed evidence IDs into links, so a partner can open the exact file being discussed. Mid-case, each detective can seal a private suspect hunch for the final debrief.
+A filmmaker vanishes before her premiere. The Street reconstructs physical scenes by choosing a field focus; The Desk conducts portrait-driven interviews using Rapport, Direct, Pressure, or an exact piece of filed evidence. The pair must recover 17 records, break two contradictions, establish three structured Case Threads, eliminate two alternate suspects, and complete a private Cross-Wire before agreeing on a four-part accusation.
 
-Both players must agree on **Story, Detective, or Noir** difficulty before readying the investigation. A late-game **Cross-Wire** procedure gives each role a genuinely private half of the dock trace: The Street must reconstruct the route digits using the Desk's order, while the Desk identifies the courier line using the Street's berth. The ending reconstructs the crime, compares the two opening hunches, reports team activity, and reveals the black-sun thread connecting this case to NOCTURNE File 02.
+Additional systems include three unanimous difficulty modes, searchable Case Files, lead states, adaptive nudges, private opening hunches, a joint ending debrief, reconnect support, and mutual readiness for every major transition.
 
-The browser receives only what the detectives have earned. Future clue text, field conclusions, interview answers, puzzle solutions, valid board pairs, deduction details, the solution, and ending text stay server-side until the corresponding action or ending is reached.
+## File 02 — The Black-Sun Ledger
 
-## Run it
+**Type:** live asymmetric infiltration · **Length:** roughly 35–50 minutes
+
+Three nights later, the black-sun stamp leads to an abandoned telephone exchange that is erasing protected witnesses from city records. The Street enters the building while The Desk operates a stolen ledger and ghost circuit.
+
+This is a different game, not a reskin of File 01:
+
+- Four sequential live checkpoints give each detective different facts, questions, and answer choices.
+- Players must describe their private dispatches, choose independently, and lock a correct pair.
+- A wrong pair resets both choices and raises a shared alert level that changes the ending.
+- A solved checkpoint reveals a shared field record, but the next location opens only after both players acknowledge it.
+- The finale is split: The Street seals the physical recovery plan while The Desk identifies the controller and the network's purpose.
+- Tutorial, difficulty, checkpoint advance, final resolution, and replay all preserve two-player consent.
+
+File 02 is available from the Case Files selector on the File 01 cover or directly at `/case-two.html`.
+
+## Run locally
 
 ```bash
 npm install
 npm start
 ```
 
-Then open **http://localhost:4173** — one of you clicks "Open a Case" to get an invite link and 5-character code. The other opens the link or enters the code under "Join a Case." Separate devices are recommended; two tabs on one computer also work.
+Open `http://localhost:4173`. One player opens a case and sends the five-character code or invite link to the other. Separate devices are recommended; two independent browser tabs also work.
 
-Shared transitions are unanimous: both detectives must ready the investigation, both must agree to open and submit the final accusation, and both must ready a case restart. One player cannot advance or reset the other player's screen alone.
+## Release verification
 
-The rebuilt case takes roughly **50–70 minutes** and requires exactly **two players**. The seven-part in-game tutorial opens during the briefing and remains available from the investigation header.
+Run syntax, security-boundary, persistence, state-machine, UI-contract, and game-logic tests:
+
+```bash
+npm run check
+```
+
+With the server running, execute both complete two-player paths:
+
+```bash
+npm run smoke -- http://localhost:4173
+npm run smoke:case2 -- http://localhost:4173
+```
+
+The File 01 smoke completes every clue, interview prerequisite, contradiction, theory, deduction, Cross-Wire half, mutual transition, accusation, ending, and replay. The File 02 smoke tests wrong-case routing, mismatched difficulty, private role payloads, a recoverable paired failure, all four checkpoints, mutual acknowledgements, the split final protocol, ending, and replay.
+
+See `PLAYTEST.md` for the human two-device QA pass.
 
 ## Optional durable rooms
 
@@ -42,36 +72,21 @@ Rooms stay in memory by default. To let an active case survive a server restart,
 ROOM_STORE_PATH=/data/nocturne-rooms.json npm start
 ```
 
-On Railway, mount a volume at `/data` and add `ROOM_STORE_PATH=/data/nocturne-rooms.json` as a service variable. Persisted cases expire after 24 hours and reconnecting players reclaim their prior role. Never point this variable at ephemeral application storage if restart recovery matters.
-
-Before shipping a change, run:
-
-```bash
-npm run check
-```
-
-This checks every JavaScript file and runs the game-logic regression suite.
-
-For a complete real-time server path, start the game in one terminal and run this in another:
-
-```bash
-npm run smoke -- http://localhost:4173
-```
-
-The smoke test creates two independent clients, confirms shared difficulty, tests private hunches and incorrect evidence presentation, completes all 17 evidence finds, the Cross-Wire, three Case Threads, two suspect eliminations, two contradictions, the combination puzzle, and a correct synchronized ending. See `PLAYTEST.md` for the human QA pass.
+On Railway, mount a volume at `/data` and set `ROOM_STORE_PATH=/data/nocturne-rooms.json`. Both case formats are normalized on restore, stale sockets are removed, resume tokens are preserved, and abandoned rooms expire after 24 hours.
 
 ## Project structure
 
-- `server/index.js` — Express + Socket.io server, room rules, and real-time relay.
-- `server/clientCase.js` — strips future answers from client payloads and releases earned details through room state.
-- `server/gameLogic.js` — testable validation, deduction, scoring, and board rules.
-- `server/roomStore.js` — optional atomic JSON persistence for active rooms.
-- `server/caseData.js` — the whole mystery: locations, people, clues, suspects, motives, and all three endings. Edit this to change the story.
-- `public/` — the client (vanilla HTML/CSS/JS, no build step).
-- `public/assets/interrogation-portraits.png` — original four-character portrait atlas used by the interview room.
-- `public/assets/location-atlas.png` — original four-location environment atlas used by Street fieldwork.
-- `scripts/socket-smoke.js` — full two-player protocol and ending smoke test.
+- `server/index.js` — Express, Socket.IO, room routing, and both real-time game protocols.
+- `server/caseData.js` / `server/gameLogic.js` — File 01 mystery and validation.
+- `server/caseTwoData.js` / `server/caseTwoLogic.js` — File 02 story, private checkpoints, scoring, and client-safe payloads.
+- `server/clientCase.js` — File 01 earned-information boundary.
+- `server/roomStore.js` — atomic optional persistence for both room formats.
+- `public/index.html`, `public/app.js`, `public/style.css` — File 01 client and Case Files selector.
+- `public/case-two.html`, `public/case-two.js`, `public/case-two.css` — dedicated File 02 operations interface.
+- `public/assets/` — original detective, character, and location art.
+- `scripts/socket-smoke.js` — full File 01 two-player path.
+- `scripts/socket-smoke-case-two.js` — full File 02 two-player path.
 
-## Adding a new case later
+## Series direction
 
-Everything about "The Last Reel" lives in `server/caseData.js`. To build a second case, duplicate that file's shape (roles, locations, field modes, people, clues, Case Threads, deductions, unlock thresholds, solution evidence, and endings) and swap it in — the server and client code don't need to change.
+File 01 establishes the black-sun stamp. File 02 reveals the witness-erasure network behind it. File 02's ending plants File 03, **The City Without Rain**, while preserving The Street and The Desk as the continuing leads.

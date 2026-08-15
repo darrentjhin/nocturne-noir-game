@@ -17,14 +17,49 @@ function roomForStorage(room) {
 function normalizeRoom(room, now, maxAgeMs) {
   if (!room || typeof room !== "object" || typeof room.code !== "string") return null;
   if (!Number.isFinite(room.updatedAt) || now - room.updatedAt > maxAgeMs) return null;
+  const caseId = room.caseId || "the-last-reel";
+  const players = {
+    A: room.players && room.players.A ? { ...room.players.A, socketId: null, connected: false } : null,
+    B: room.players && room.players.B ? { ...room.players.B, socketId: null, connected: false } : null
+  };
+
+  if (caseId === "black-sun-ledger") {
+    return {
+      ...room,
+      caseId,
+      players,
+      phase: ["lobby", "briefing", "operation", "convergence", "ending"].includes(room.phase) ? room.phase : "lobby",
+      difficultyVotes: { A: null, B: null, ...(room.difficultyVotes || {}) },
+      difficulty: typeof room.difficulty === "string" ? room.difficulty : null,
+      briefingReady: { A: false, B: false, ...(room.briefingReady || {}) },
+      stageIndex: Number.isInteger(room.stageIndex) ? Math.max(0, Math.min(3, room.stageIndex)) : 0,
+      stageLocks: { A: null, B: null, ...(room.stageLocks || {}) },
+      stageResolved: !!room.stageResolved,
+      stageAcknowledged: { A: false, B: false, ...(room.stageAcknowledged || {}) },
+      stageHistory: Array.isArray(room.stageHistory) ? room.stageHistory.slice(0, 4) : [],
+      lastFailure: typeof room.lastFailure === "string" ? room.lastFailure : null,
+      alertLevel: Number.isInteger(room.alertLevel) ? Math.max(0, Math.min(3, room.alertLevel)) : 0,
+      chat: Array.isArray(room.chat) ? room.chat.slice(-200) : [],
+      finalDrafts: { A: null, B: null, ...(room.finalDrafts || {}) },
+      finalLocked: { A: false, B: false, ...(room.finalLocked || {}) },
+      restartReady: { A: false, B: false, ...(room.restartReady || {}) },
+      activity: {
+        A: { locks: 0, radioMessages: 0, hintsUsed: 0, ...((room.activity && room.activity.A) || {}) },
+        B: { locks: 0, radioMessages: 0, hintsUsed: 0, ...((room.activity && room.activity.B) || {}) },
+        pairAttempts: Number.isFinite(room.activity && room.activity.pairAttempts) ? room.activity.pairAttempts : 0
+      },
+      startedAt: Number.isFinite(room.startedAt) ? room.startedAt : null,
+      completedAt: Number.isFinite(room.completedAt) ? room.completedAt : null,
+      result: room.result || null
+    };
+  }
+
   if (!room.found || !Array.isArray(room.found.A) || !Array.isArray(room.found.B)) return null;
 
   return {
     ...room,
-    players: {
-      A: room.players && room.players.A ? { ...room.players.A, socketId: null, connected: false } : null,
-      B: room.players && room.players.B ? { ...room.players.B, socketId: null, connected: false } : null
-    },
+    caseId,
+    players,
     flavorSeen: room.flavorSeen || { A: [], B: [] },
     puzzlesSolved: room.puzzlesSolved || {},
     board: room.board || { pins: {}, links: [] },

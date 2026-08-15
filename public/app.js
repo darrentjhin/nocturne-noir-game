@@ -272,10 +272,10 @@
   function doCreate() {
     showError("");
     const name = $("#create-name").value.trim() || "Detective";
-    socket.emit("room:create", { name }, (res) => {
+    socket.emit("room:create", { name, caseId: "the-last-reel" }, (res) => {
       if (!res.ok) return showError(res.error);
-      socket.emit("room:join", { code: res.code, name }, (res2) => {
-        if (!res2.ok) return showError(res2.error);
+      socket.emit("room:join", { code: res.code, name, expectedCaseId: "the-last-reel" }, (res2) => {
+        if (!res2.ok) return handleRoomError(res2, res.code);
         onJoined(res2);
       });
     });
@@ -286,8 +286,8 @@
     const name = $("#join-name").value.trim() || "Detective";
     const code = $("#join-code").value.trim().toUpperCase();
     if (!code) return showError("Enter a case code.");
-    socket.emit("room:join", { code, name }, (res) => {
-      if (!res.ok) return showError(res.error);
+    socket.emit("room:join", { code, name, expectedCaseId: "the-last-reel" }, (res) => {
+      if (!res.ok) return handleRoomError(res, code);
       onJoined(res);
     });
   }
@@ -307,6 +307,16 @@
 
   function showError(msg) {
     $("#landing-error").textContent = msg;
+  }
+
+  function handleRoomError(response, code) {
+    if (response && response.destination) {
+      const destination = new URL(response.destination, window.location.origin);
+      destination.searchParams.set("case", code);
+      window.location.assign(destination.toString());
+      return;
+    }
+    showError((response && response.error) || "That case could not be opened.");
   }
 
   function onJoined(res) {
@@ -358,7 +368,7 @@
       $("#lobby-code").textContent = saved.code;
       $("#lobby-slot-A").textContent = "Reconnecting to your case...";
     }
-    socket.emit("room:join", { code: saved.code, role: saved.role, name: saved.name, resumeToken: saved.resumeToken }, (res) => {
+    socket.emit("room:join", { code: saved.code, role: saved.role, name: saved.name, resumeToken: saved.resumeToken, expectedCaseId: "the-last-reel" }, (res) => {
       resumeInFlight = false;
       if (!res || !res.ok) {
         clearSession();

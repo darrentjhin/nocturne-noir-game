@@ -4,6 +4,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const caseData = require("./caseData");
+const caseTwoData = require("./caseTwoData");
 const {
   createClientCase,
   deductionDetailsForRoom,
@@ -41,6 +42,18 @@ const {
   threadSolutionMatches,
   validPuzzleHotspot
 } = require("./gameLogic");
+const {
+  caseTwoDifficultyConfirmed,
+  createClientCaseTwo,
+  freshCaseTwoRoom,
+  publicCaseTwoRoomState,
+  resetCaseTwoRoom,
+  sanitizeFinalDraft,
+  scoreFinalProtocol,
+  stageAt,
+  stagePairMatches,
+  validStageChoice
+} = require("./caseTwoLogic");
 const { createRoomStore } = require("./roomStore");
 
 const app = express();
@@ -51,6 +64,7 @@ const PORT = process.env.PORT || 4173;
 const roomStore = createRoomStore(process.env.ROOM_STORE_PATH);
 const rooms = roomStore.load();
 const clientCaseData = createClientCase(caseData);
+const publicCaseTwoData = createClientCaseTwo(caseTwoData);
 
 app.disable("x-powered-by");
 app.use((req, res, next) => {
@@ -67,6 +81,10 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 app.get("/api/case", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json(clientCaseData);
+});
+app.get("/api/cases/black-sun-ledger", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json(publicCaseTwoData);
 });
 app.get("/api/health", (req, res) => res.json({ ok: true, rooms: rooms.size, persistence: roomStore.mode }));
 
@@ -124,6 +142,7 @@ function makeResumeToken() {
 function freshRoom(code) {
   return {
     code,
+    caseId: caseData.id,
     phase: "lobby",
     players: { A: null, B: null },
     found: { A: [], B: [] },
@@ -157,7 +176,16 @@ function freshRoom(code) {
   };
 }
 
+function isCaseOneRoom(room) {
+  return !!room && (!room.caseId || room.caseId === caseData.id);
+}
+
+function isCaseTwoRoom(room) {
+  return !!room && room.caseId === caseTwoData.id;
+}
+
 function publicRoomState(room) {
+  if (isCaseTwoRoom(room)) return publicCaseTwoRoomState(room);
   return {
     code: room.code,
     phase: room.phase,
@@ -229,17 +257,27 @@ io.on("connection", (socket) => {
   socket.on("room:create", (payload = {}, cb) => {
     if (!allowEvent("room:create", 5, 60_000)) return cb && cb({ ok: false, error: "Too many new cases. Wait a moment." });
     const code = makeRoomCode();
-    const room = freshRoom(code);
+    const requestedCaseId = payload.caseId === caseTwoData.id ? caseTwoData.id : caseData.id;
+    const room = requestedCaseId === caseTwoData.id ? freshCaseTwoRoom(code) : freshRoom(code);
     rooms.set(code, room);
     roomStore.scheduleSave(rooms);
     cb && cb({ ok: true, code });
   });
 
   socket.on("room:join", (payload = {}, cb) => {
-    let { code, role, name, resumeToken } = payload || {};
+    let { code, role, name, resumeToken, expectedCaseId } = payload || {};
     code = typeof code === "string" ? code.toUpperCase().trim() : "";
     const room = rooms.get(code);
     if (!room) return cb && cb({ ok: false, error: "No case open with that code." });
+    const roomCaseId = room.caseId || caseData.id;
+    if (expectedCaseId && expectedCaseId !== roomCaseId) {
+      const destination = roomCaseId === caseTwoData.id ? "/case-two.html" : "/";
+      return cb && cb({
+        ok: false,
+        error: `That code belongs to ${roomCaseId === caseTwoData.id ? "File 02 · The Black-Sun Ledger" : "File 01 · The Last Reel"}.`,
+        destination
+      });
+    }
 
     const selection = chooseRoleForJoin(room.players, role, resumeToken);
     if (!selection) {
@@ -273,7 +311,8 @@ io.on("connection", (socket) => {
       room.phase = "briefing";
     }
 
-    cb && cb({ ok: true, code, role: takeRole, name: room.players[takeRole].name, resumeToken: roleToken, case: createClientCase(caseData, takeRole) });
+    const joinedCase = isCaseTwoRoom(room) ? createClientCaseTwo(caseTwoData, takeRole) : createClientCase(caseData, takeRole);
+    cb && cb({ ok: true, code, caseId: roomCaseId, role: takeRole, name: room.players[takeRole].name, resumeToken: roleToken, case: joinedCase });
     broadcast(room);
   });
 
@@ -281,7 +320,7 @@ io.on("connection", (socket) => {
     if (!allowEvent("difficulty:vote", 12, 10_000)) return cb && cb({ ok: false, error: "Slow down and compare the difficulty descriptions together." });
     const room = rooms.get(joinedCode);
     const difficulty = typeof payload.difficulty === "string" ? payload.difficulty : "";
-    if (!room || !joinedRole || room.phase !== "briefing" || !(caseData.difficultyOptions || []).some((option) => option.id === difficulty)) {
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "briefing" || !(caseData.difficultyOptions || []).some((option) => option.id === difficulty)) {
       return cb && cb({ ok: false, error: "That difficulty is not available." });
     }
     room.difficultyVotes[joinedRole] = difficulty;
@@ -294,7 +333,7 @@ io.on("connection", (socket) => {
   socket.on("phase:advance", (payload = {}) => {
     const { phase } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !canAdvancePhase(room, phase)) return;
+    if (!isCaseOneRoom(room) || !canAdvancePhase(room, phase)) return;
     room.phase = phase;
     room.callReady = { A: false, B: false };
     room.accusationDraft.readyA = false;
@@ -305,7 +344,7 @@ io.on("connection", (socket) => {
   socket.on("briefing:ready", (payload = {}) => {
     if (!allowEvent("readiness", 20, 10_000)) return;
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "briefing" || !difficultyConfirmed(room)) return;
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "briefing" || !difficultyConfirmed(room)) return;
     room.briefingReady[joinedRole] = !!payload.ready;
     if (bothPlayersReady(room, "briefingReady")) {
       room.phase = "investigation";
@@ -317,7 +356,7 @@ io.on("connection", (socket) => {
   socket.on("call:ready", (payload = {}) => {
     if (!allowEvent("readiness", 20, 10_000)) return;
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "investigation" || !accusationUnlocked(room)) return;
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "investigation" || !accusationUnlocked(room)) return;
     room.callReady[joinedRole] = !!payload.ready;
     if (bothPlayersReady(room, "callReady")) {
       room.callReady = { A: false, B: false };
@@ -331,7 +370,7 @@ io.on("connection", (socket) => {
   socket.on("clue:found", (payload = {}) => {
     const { clueId, sceneMode } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || !canRevealClue(room, joinedRole, clueId)) return;
+    if (!isCaseOneRoom(room) || !joinedRole || !canRevealClue(room, joinedRole, clueId)) return;
     if (joinedRole === "A" && !fieldModeMatches(clueId, sceneMode)) return;
     addClueToRoom(room, joinedRole, clueId);
     broadcast(room);
@@ -342,7 +381,7 @@ io.on("connection", (socket) => {
     const { clueId, sceneMode } = payload || {};
     const room = rooms.get(joinedCode);
     const alreadyFound = room && ownsFoundClue(room, clueId);
-    if (!room || !joinedRole || (!alreadyFound && !canRevealClue(room, joinedRole, clueId))) {
+    if (!isCaseOneRoom(room) || !joinedRole || (!alreadyFound && !canRevealClue(room, joinedRole, clueId))) {
       return cb && cb({ ok: false, error: "That evidence is not available yet." });
     }
     if (!alreadyFound && joinedRole === "A" && !fieldModeMatches(clueId, sceneMode)) {
@@ -356,7 +395,7 @@ io.on("connection", (socket) => {
   socket.on("flavor:seen", (payload = {}) => {
     const { hotspotId } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || !canRevealFlavor(room, joinedRole, hotspotId)) return;
+    if (!isCaseOneRoom(room) || !joinedRole || !canRevealFlavor(room, joinedRole, hotspotId)) return;
     if (!room.flavorSeen[joinedRole].includes(hotspotId)) {
       room.flavorSeen[joinedRole].push(hotspotId);
     }
@@ -369,7 +408,7 @@ io.on("connection", (socket) => {
     }
     const { puzzleId, code, hotspotId, sceneMode } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole) return cb && cb({ ok: false, error: "No active case." });
+    if (!isCaseOneRoom(room) || !joinedRole) return cb && cb({ ok: false, error: "No active case." });
     const puzzle = caseData.puzzles[puzzleId];
     if (!puzzle || !validPuzzleHotspot(room, joinedRole, puzzleId, hotspotId, sceneMode)) {
       return cb && cb({ ok: false, soft: true, error: "This lock does not fit your current reconstruction focus." });
@@ -392,7 +431,7 @@ io.on("connection", (socket) => {
     }
     const { personId, questionId, approach, evidenceId } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || room.phase !== "investigation" || !joinedRole) {
+    if (!isCaseOneRoom(room) || room.phase !== "investigation" || !joinedRole) {
       return cb && cb({ ok: false, error: "No active interview." });
     }
     if (!canAskInterviewQuestion(room, joinedRole, personId, questionId)) {
@@ -447,7 +486,7 @@ io.on("connection", (socket) => {
     const { clueId, x, y } = payload || {};
     const room = rooms.get(joinedCode);
     const position = clampBoardPosition(Number(x), Number(y));
-    if (!room || !position || !ownsFoundClue(room, clueId)) return;
+    if (!isCaseOneRoom(room) || !position || !ownsFoundClue(room, clueId)) return;
     room.board.pins[clueId] = position;
     broadcast(room);
   });
@@ -457,7 +496,7 @@ io.on("connection", (socket) => {
     const { a, b } = payload || {};
     const room = rooms.get(joinedCode);
     if (room && room.activity && room.activity.team) room.activity.team.boardAttempts += 1;
-    if (!room || a === b || !ownsFoundClue(room, a) || !ownsFoundClue(room, b)) {
+    if (!isCaseOneRoom(room) || a === b || !ownsFoundClue(room, a) || !ownsFoundClue(room, b)) {
       return cb && cb({ ok: false, error: "Choose two filed pieces of evidence." });
     }
     const exists = room.board.links.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
@@ -478,7 +517,7 @@ io.on("connection", (socket) => {
   socket.on("thread:update", (payload = {}) => {
     const { threadId, update } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "investigation" || room.threadsSolved.includes(threadId)) return;
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "investigation" || room.threadsSolved.includes(threadId)) return;
     const clean = sanitizeThreadUpdate(room, threadId, update);
     if (!Object.keys(clean).length) return;
     room.threadDrafts[threadId] = { ...(room.threadDrafts[threadId] || {}), ...clean };
@@ -489,7 +528,7 @@ io.on("connection", (socket) => {
     if (!allowEvent("thread:submit", 12, 60_000)) return cb && cb({ ok: false, error: "Too many theory attempts. Review the case files first." });
     const { threadId } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "investigation") return cb && cb({ ok: false, error: "Return to the investigation first." });
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "investigation") return cb && cb({ ok: false, error: "Return to the investigation first." });
     if (room.activity && room.activity.team) room.activity.team.threadAttempts += 1;
     if (room.threadsSolved.includes(threadId)) return cb && cb({ ok: true, alreadySolved: true });
     const draft = room.threadDrafts[threadId] || {};
@@ -518,7 +557,7 @@ io.on("connection", (socket) => {
   socket.on("operation:submit", (payload = {}, cb) => {
     if (!allowEvent("operation:submit", 12, 60_000)) return cb && cb({ ok: false, error: "Pause and compare the two copies before trying again." });
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "investigation" || !operationUnlocked(room)) {
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "investigation" || !operationUnlocked(room)) {
       return cb && cb({ ok: false, error: "The cross-wire trace is not available yet." });
     }
     const partnerRole = joinedRole === "A" ? "B" : "A";
@@ -552,7 +591,7 @@ io.on("connection", (socket) => {
     const room = rooms.get(joinedCode);
     const suspectId = typeof payload.suspectId === "string" ? payload.suspectId : "";
     const totalFound = room ? room.found.A.length + room.found.B.length : 0;
-    if (!room || !joinedRole || room.phase !== "investigation" || totalFound < 5 || !caseData.suspects.includes(suspectId)) {
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "investigation" || totalFound < 5 || !caseData.suspects.includes(suspectId)) {
       return cb && cb({ ok: false, error: "The private hunch is not available yet." });
     }
     if (room.hunches[joinedRole]) return cb && cb({ ok: true, alreadyLocked: true });
@@ -563,7 +602,7 @@ io.on("connection", (socket) => {
 
   socket.on("hint:used", () => {
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "investigation") return;
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "investigation") return;
     if (room.activity && room.activity.team) room.activity.team.hintsUsed += 1;
     broadcast(room);
   });
@@ -572,7 +611,7 @@ io.on("connection", (socket) => {
     if (!allowEvent("chat:send", 15, 10_000)) return;
     const { text } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || typeof text !== "string" || !text.trim()) return;
+    if (!isCaseOneRoom(room) || !joinedRole || typeof text !== "string" || !text.trim()) return;
     const player = room.players[joinedRole];
     if (room.activity && room.activity[joinedRole]) room.activity[joinedRole].radioMessages += 1;
     room.chat.push({ id: crypto.randomUUID(), role: joinedRole, name: player ? player.name : joinedRole, text: text.trim().slice(0, 500), ts: Date.now() });
@@ -582,7 +621,7 @@ io.on("connection", (socket) => {
 
   socket.on("accusation:update", (partial) => {
     const room = rooms.get(joinedCode);
-    if (!room || room.phase !== "accusation" || !accusationUnlocked(room)) return;
+    if (!isCaseOneRoom(room) || room.phase !== "accusation" || !accusationUnlocked(room)) return;
     const clean = sanitizeAccusationUpdate(partial);
     if (!Object.keys(clean).length) return;
     Object.assign(room.accusationDraft, clean);
@@ -595,7 +634,7 @@ io.on("connection", (socket) => {
   socket.on("accusation:ready", (payload = {}) => {
     const { ready } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "accusation" || !accusationUnlocked(room)) return;
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "accusation" || !accusationUnlocked(room)) return;
     const { suspect, location, motive, method } = room.accusationDraft;
     if (!suspect || !location || !motive || !method) return;
     room.accusationDraft[joinedRole === "A" ? "readyA" : "readyB"] = !!ready;
@@ -611,7 +650,7 @@ io.on("connection", (socket) => {
   socket.on("restart:ready", (payload = {}) => {
     if (!allowEvent("readiness", 20, 10_000)) return;
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "ending") return;
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "ending") return;
     room.restartReady[joinedRole] = !!payload.ready;
     if (!bothPlayersReady(room, "restartReady")) {
       broadcast(room);
@@ -646,6 +685,153 @@ io.on("connection", (socket) => {
     room.completedAt = null;
     room.result = null;
     broadcast(room);
+  });
+
+  // File 02 runs on a separate state machine: private paired decisions,
+  // shared alert pressure, mutual checkpoint acknowledgements, and a split
+  // final protocol. Keeping these events namespaced prevents either case from
+  // mutating the other case's room shape.
+  socket.on("case2:difficulty:vote", (payload = {}, cb) => {
+    if (!allowEvent("case2:difficulty", 12, 10_000)) return cb && cb({ ok: false, error: "Pause and agree on one operation mode." });
+    const room = rooms.get(joinedCode);
+    const difficulty = typeof payload.difficulty === "string" ? payload.difficulty : "";
+    if (!isCaseTwoRoom(room) || !joinedRole || room.phase !== "briefing" || !caseTwoData.difficultyOptions.some((option) => option.id === difficulty)) {
+      return cb && cb({ ok: false, error: "That operation mode is not available." });
+    }
+    room.difficultyVotes[joinedRole] = difficulty;
+    room.difficulty = room.difficultyVotes.A && room.difficultyVotes.A === room.difficultyVotes.B ? difficulty : null;
+    room.briefingReady = { A: false, B: false };
+    broadcast(room);
+    cb && cb({ ok: true, confirmed: !!room.difficulty });
+  });
+
+  socket.on("case2:briefing:ready", (payload = {}, cb) => {
+    if (!allowEvent("case2:readiness", 20, 10_000)) return cb && cb({ ok: false, error: "Readiness is changing too quickly." });
+    const room = rooms.get(joinedCode);
+    if (!isCaseTwoRoom(room) || !joinedRole || room.phase !== "briefing" || !caseTwoDifficultyConfirmed(room)) {
+      return cb && cb({ ok: false, error: "Both detectives must confirm the same mode first." });
+    }
+    room.briefingReady[joinedRole] = !!payload.ready;
+    if (bothPlayersReady(room, "briefingReady")) {
+      room.phase = "operation";
+      room.startedAt = Date.now();
+    }
+    broadcast(room);
+    cb && cb({ ok: true });
+  });
+
+  socket.on("case2:stage:lock", (payload = {}, cb) => {
+    if (!allowEvent("case2:stage:lock", 16, 60_000)) return cb && cb({ ok: false, error: "The circuit is rejecting rapid inputs. Compare dispatches first." });
+    const room = rooms.get(joinedCode);
+    const choiceId = typeof payload.choiceId === "string" ? payload.choiceId : "";
+    if (!isCaseTwoRoom(room) || !joinedRole || room.phase !== "operation" || room.stageResolved || !validStageChoice(room, joinedRole, choiceId)) {
+      return cb && cb({ ok: false, error: "That checkpoint choice is not available." });
+    }
+    const partnerRole = joinedRole === "A" ? "B" : "A";
+    if (!room.players[partnerRole] || !room.players[partnerRole].connected) {
+      return cb && cb({ ok: false, error: "Your partner must be on the line before a checkpoint can lock." });
+    }
+    if (room.stageLocks[joinedRole]) return cb && cb({ ok: true, waiting: true, alreadyLocked: true });
+    room.stageLocks[joinedRole] = choiceId;
+    room.activity[joinedRole].locks += 1;
+    if (room.stageLocks.A && room.stageLocks.B) {
+      room.activity.pairAttempts += 1;
+      const stage = stageAt(room);
+      if (stagePairMatches(room)) {
+        room.stageResolved = true;
+        room.stageAcknowledged = { A: false, B: false };
+        room.lastFailure = null;
+        room.stageHistory.push({ id: stage.id, outcome: stage.outcome });
+      } else {
+        room.alertLevel = Math.min(3, room.alertLevel + 1);
+        room.lastFailure = stage.failure[room.difficulty] || stage.failure.field;
+        room.stageLocks = { A: null, B: null };
+      }
+    }
+    broadcast(room);
+    cb && cb({ ok: true, resolved: room.stageResolved, waiting: !room.stageLocks[partnerRole] });
+  });
+
+  socket.on("case2:stage:acknowledge", (payload = {}, cb) => {
+    if (!allowEvent("case2:readiness", 20, 10_000)) return cb && cb({ ok: false, error: "Checkpoint acknowledgement is changing too quickly." });
+    const room = rooms.get(joinedCode);
+    if (!isCaseTwoRoom(room) || !joinedRole || room.phase !== "operation" || !room.stageResolved) {
+      return cb && cb({ ok: false, error: "There is no resolved checkpoint to acknowledge." });
+    }
+    room.stageAcknowledged[joinedRole] = payload.ready !== false;
+    if (bothPlayersReady(room, "stageAcknowledged")) {
+      if (room.stageIndex >= caseTwoData.stages.length - 1) {
+        room.phase = "convergence";
+      } else {
+        room.stageIndex += 1;
+        room.stageLocks = { A: null, B: null };
+        room.stageResolved = false;
+        room.stageAcknowledged = { A: false, B: false };
+        room.lastFailure = null;
+      }
+    }
+    broadcast(room);
+    cb && cb({ ok: true });
+  });
+
+  socket.on("case2:hint", (payload = {}, cb) => {
+    if (!allowEvent("case2:hint", 4, 60_000)) return cb && cb({ ok: false, error: "No further dispatch is available yet." });
+    const room = rooms.get(joinedCode);
+    const stage = room && stageAt(room);
+    if (!isCaseTwoRoom(room) || !joinedRole || room.phase !== "operation" || !stage) {
+      return cb && cb({ ok: false, error: "No active checkpoint." });
+    }
+    room.activity[joinedRole].hintsUsed += 1;
+    broadcast(room);
+    cb && cb({ ok: true, hint: stage.roles[joinedRole].request });
+  });
+
+  socket.on("case2:chat", (payload = {}) => {
+    if (!allowEvent("case2:chat", 15, 10_000)) return;
+    const room = rooms.get(joinedCode);
+    const message = typeof payload.text === "string" ? payload.text.trim().slice(0, 500) : "";
+    if (!isCaseTwoRoom(room) || !joinedRole || !["operation", "convergence"].includes(room.phase) || !message) return;
+    const player = room.players[joinedRole];
+    room.activity[joinedRole].radioMessages += 1;
+    room.chat.push({ id: crypto.randomUUID(), role: joinedRole, name: player ? player.name : joinedRole, text: message, ts: Date.now() });
+    if (room.chat.length > 200) room.chat.shift();
+    broadcast(room);
+  });
+
+  socket.on("case2:final:lock", (payload = {}, cb) => {
+    if (!allowEvent("case2:final", 8, 60_000)) return cb && cb({ ok: false, error: "The final circuit needs a moment before another transmission." });
+    const room = rooms.get(joinedCode);
+    if (!isCaseTwoRoom(room) || !joinedRole || room.phase !== "convergence") {
+      return cb && cb({ ok: false, error: "The final protocol is not open." });
+    }
+    const partnerRole = joinedRole === "A" ? "B" : "A";
+    if (!room.players[partnerRole] || !room.players[partnerRole].connected) {
+      return cb && cb({ ok: false, error: "Your partner must be connected before you seal the final protocol." });
+    }
+    if (room.finalLocked[joinedRole]) return cb && cb({ ok: true, alreadyLocked: true });
+    const draft = sanitizeFinalDraft(joinedRole, payload.draft);
+    if (!draft) return cb && cb({ ok: false, error: "Complete both parts of your private protocol." });
+    room.finalDrafts[joinedRole] = draft;
+    room.finalLocked[joinedRole] = true;
+    if (room.finalLocked.A && room.finalLocked.B) {
+      room.result = scoreFinalProtocol(room);
+      room.completedAt = Date.now();
+      room.phase = "ending";
+    }
+    broadcast(room);
+    cb && cb({ ok: true });
+  });
+
+  socket.on("case2:restart:ready", (payload = {}, cb) => {
+    if (!allowEvent("case2:readiness", 20, 10_000)) return cb && cb({ ok: false, error: "Readiness is changing too quickly." });
+    const room = rooms.get(joinedCode);
+    if (!isCaseTwoRoom(room) || !joinedRole || room.phase !== "ending") {
+      return cb && cb({ ok: false, error: "The operation has not ended." });
+    }
+    room.restartReady[joinedRole] = !!payload.ready;
+    if (bothPlayersReady(room, "restartReady")) resetCaseTwoRoom(room);
+    broadcast(room);
+    cb && cb({ ok: true });
   });
 
   socket.on("disconnect", () => {

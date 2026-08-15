@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description" content="NOCTURNE: The Black-Sun Ledger — a live asymmetric mystery for exactly two players." />
+  <title>NOCTURNE — The Black-Sun Ledger</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☀</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="case-two.css" />
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <div class="connection-banner" id="connection-banner" role="status" aria-live="polite"></div>
+
+  <section class="screen active" id="screen-landing">
+    <div class="cover-grid">
+      <div class="cover-copy">
+        <a class="file-back" href="/">← FILE 01 · THE LAST REEL</a>
+        <div class="eyebrow">NOCTURNE · FILE 02</div>
+        <div class="black-sun" aria-hidden="true"><span></span></div>
+        <h1>THE BLACK-SUN<br />LEDGER</h1>
+        <p class="cover-deck">One detective enters the dead exchange. One keeps the ghost circuit alive. Neither screen contains the whole route.</p>
+        <div class="cover-facts">
+          <span>2 players</span><span>35–50 minutes</span><span>Separate devices</span>
+        </div>
+        <div class="detective-pair" aria-label="The returning detectives">
+          <article>
+            <div class="detective-face street" role="img" aria-label="The Street detective"></div>
+            <div><strong>The Street</strong><small>Inside the exchange</small></div>
+          </article>
+          <article>
+            <div class="detective-face desk" role="img" aria-label="The Desk detective"></div>
+            <div><strong>The Desk</strong><small>On the ghost circuit</small></div>
+          </article>
+        </div>
+      </div>
+
+      <div class="access-card">
+        <div class="case-status"><span class="pulse"></span> FILE 02 AVAILABLE</div>
+        <div class="landing-tabs" role="tablist" aria-label="Open or join an operation">
+          <button class="landing-tab active" type="button" data-tab="create" role="tab" aria-selected="true">Open operation</button>
+          <button class="landing-tab" type="button" data-tab="join" role="tab" aria-selected="false">Join partner</button>
+        </div>
+        <div class="landing-panel active" id="panel-create" role="tabpanel">
+          <label for="create-name">Detective name</label>
+          <input id="create-name" maxlength="24" autocomplete="name" placeholder="Enter your name" />
+          <button class="button primary" id="btn-create" type="button">Open File 02</button>
+        </div>
+        <div class="landing-panel" id="panel-join" role="tabpanel">
+          <div class="invite-notice" id="invite-notice" hidden>Encrypted invitation detected.</div>
+          <label for="join-name">Detective name</label>
+          <input id="join-name" maxlength="24" autocomplete="name" placeholder="Enter your name" />
+          <label for="join-code">Operation code</label>
+          <input id="join-code" maxlength="5" autocapitalize="characters" placeholder="ABCDE" />
+          <button class="button primary" id="btn-join" type="button">Join File 02</button>
+        </div>
+        <div class="form-error" id="landing-error" role="alert"></div>
+        <p class="access-note">Both players receive a private screen. Voice chat or the built-in Radio Line is required.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen centered" id="screen-lobby">
+    <div class="signal-card lobby-card">
+      <div class="eyebrow">ENCRYPTED OPERATION OPEN</div>
+      <h1>WAITING ON THE SECOND LINE</h1>
+      <p>Send this code or the invite link to your partner.</p>
+      <div class="operation-code" id="lobby-code">-----</div>
+      <button class="button secondary" id="btn-copy-invite" type="button">Copy encrypted invite</button>
+      <div class="copy-status" id="copy-status" role="status" aria-live="polite"></div>
+      <div class="line-slots">
+        <div id="lobby-slot-A"><span>A</span> The Street · waiting</div>
+        <div id="lobby-slot-B"><span>B</span> The Desk · waiting</div>
+      </div>
+      <button class="text-button leave-operation" type="button">Leave operation</button>
+    </div>
+  </section>
+
+  <section class="screen centered" id="screen-briefing">
+    <div class="briefing-shell">
+      <div class="briefing-header">
+        <div><div class="eyebrow">NOCTURNE · FILE 02</div><h1>THE BLACK-SUN LEDGER</h1></div>
+        <button class="button secondary small" id="btn-briefing-tutorial" type="button">How to play</button>
+      </div>
+      <p class="briefing-headline" id="briefing-headline"></p>
+      <div class="briefing-columns">
+        <article class="signal-card"><span>CASE BRIEF</span><p id="briefing-body"></p><strong id="briefing-objective"></strong></article>
+        <article class="signal-card role-brief"><span>YOUR ASSIGNMENT</span><h2 id="briefing-role-name"></h2><p id="briefing-role-body"></p></article>
+      </div>
+      <fieldset class="mode-panel">
+        <legend>CHOOSE OPERATION MODE TOGETHER</legend>
+        <div class="mode-options" id="mode-options"></div>
+        <div class="mode-status" id="mode-status" role="status" aria-live="polite"></div>
+      </fieldset>
+      <div class="ready-panel">
+        <div class="ready-lines" id="briefing-ready-lines"></div>
+        <button class="button primary" id="btn-briefing-ready" type="button" aria-pressed="false">Agree on a mode first</button>
+        <small>The exchange opens only when both detectives are ready.</small>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-operation">
+    <header class="operation-header">
+      <div><span class="brand">NOCTURNE</span><span class="file-label">FILE 02 · BLACK-SUN LEDGER</span></div>
+      <div class="header-status">
+        <span id="role-pill"></span>
+        <span id="partner-status"></span>
+        <button class="header-button" id="btn-operation-tutorial" type="button">Protocol</button>
+        <button class="header-button leave-operation" type="button">Leave</button>
+      </div>
+    </header>
+
+    <div class="operation-meter">
+      <div class="checkpoint-track" id="checkpoint-track"></div>
+      <div class="alert-meter"><span>ALERT</span><div id="alert-pips"></div></div>
+    </div>
+
+    <main class="operation-grid">
+      <section class="private-console">
+        <div class="console-label">PRIVATE · DO NOT ASSUME PARTNER CAN SEE</div>
+        <div class="stage-number" id="stage-number"></div>
+        <h1 id="stage-title"></h1>
+        <p class="stage-location" id="stage-location"></p>
+        <article class="dispatch-card">
+          <span id="dispatch-label"></span>
+          <ul id="dispatch-facts"></ul>
+        </article>
+        <div class="request-card"><strong>ASK YOUR PARTNER</strong><p id="dispatch-request"></p></div>
+        <button class="text-button" id="btn-private-hint" type="button">Request a private nudge</button>
+        <p class="private-hint" id="private-hint" role="status"></p>
+      </section>
+
+      <section class="joint-console">
+        <div class="console-label">JOINT CHECKPOINT</div>
+        <p class="objective" id="stage-objective"></p>
+        <div id="decision-panel">
+          <h2 id="decision-prompt"></h2>
+          <div class="choice-grid" id="stage-choices"></div>
+          <div class="lock-status" id="stage-lock-status"></div>
+          <button class="button primary" id="btn-lock-stage" type="button">Choose an answer</button>
+          <div class="failure-message" id="stage-failure" role="alert"></div>
+        </div>
+        <article class="resolution-card" id="resolution-card" hidden>
+          <span>CHECKPOINT RESOLVED</span>
+          <h2 id="resolution-title"></h2>
+          <p id="resolution-text"></p>
+          <div class="evidence-strip" id="resolution-evidence"></div>
+          <div class="ready-lines" id="stage-ready-lines"></div>
+          <button class="button primary" id="btn-acknowledge" type="button">Acknowledge checkpoint</button>
+        </article>
+      </section>
+
+      <aside class="radio-console">
+        <div class="radio-head"><div><span class="pulse"></span><strong>RADIO LINE</strong></div><small>Live with partner</small></div>
+        <p>Share the exact label, number, symbol, or rule your partner asks for.</p>
+        <div class="quick-signals">
+          <button type="button" data-message="What exact label do you see?">Exact label?</button>
+          <button type="button" data-message="Read me the number exactly.">Read the number</button>
+          <button type="button" data-message="I am ready to compare choices.">Ready to compare</button>
+        </div>
+        <div class="radio-log" id="radio-log" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <form class="radio-form" id="radio-form">
+          <input id="radio-input" maxlength="500" autocomplete="off" aria-label="Radio message" placeholder="Transmit to partner…" />
+          <button class="button primary small" type="submit">Send</button>
+        </form>
+      </aside>
+    </main>
+
+    <section class="field-records">
+      <div class="console-label">SHARED FIELD RECORDS</div>
+      <div class="record-grid" id="record-grid"></div>
+    </section>
+  </section>
+
+  <section class="screen centered" id="screen-convergence">
+    <div class="protocol-shell">
+      <div class="eyebrow">FINAL CONVERGENCE · PRIVATE HALF</div>
+      <h1 id="final-headline"></h1>
+      <p id="final-body"></p>
+      <article class="protocol-card">
+        <span id="final-role-label"></span>
+        <div id="final-fields"></div>
+      </article>
+      <div class="final-status" id="final-status"></div>
+      <button class="button danger" id="btn-final-lock" type="button">Seal my final protocol</button>
+      <p class="protocol-warning">Your selections remain hidden from your partner until both halves are sealed.</p>
+    </div>
+  </section>
+
+  <section class="screen centered" id="screen-ending">
+    <div class="ending-shell">
+      <div class="eyebrow">OPERATION DEBRIEF</div>
+      <h1 id="ending-title"></h1>
+      <p class="ending-body" id="ending-body"></p>
+      <div class="ending-grid">
+        <article class="signal-card truth-card"><span>THE TRUTH</span><p id="ending-truth"></p></article>
+        <article class="signal-card"><span>TEAM PERFORMANCE</span><div id="ending-stats"></div></article>
+      </div>
+      <section class="decision-recap">
+        <div class="console-label">FINAL PROTOCOL REVIEW</div>
+        <div id="ending-decisions"></div>
+      </section>
+      <section class="next-file">
+        <span id="next-label"></span><h2 id="next-title"></h2><p id="next-text"></p><strong id="next-status"></strong>
+      </section>
+      <div class="ready-panel">
+        <div class="ready-lines" id="restart-ready-lines"></div>
+        <button class="button primary" id="btn-restart" type="button">I'm ready to run it again</button>
+        <a class="text-button" href="/">Return to File 01</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="modal" id="tutorial-modal" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" hidden>
+    <div class="tutorial-card">
+      <button class="modal-close" id="tutorial-close" type="button" aria-label="Close tutorial">×</button>
+      <div class="eyebrow" id="tutorial-step"></div>
+      <div class="tutorial-icon" id="tutorial-icon" aria-hidden="true">⌁</div>
+      <h2 id="tutorial-title"></h2>
+      <p id="tutorial-body"></p>
+      <div class="tutorial-dots" id="tutorial-dots"></div>
+      <div class="tutorial-actions">
+        <button class="button secondary" id="tutorial-back" type="button">Back</button>
+        <button class="button primary" id="tutorial-next" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="case-two.js"></script>
+</body>
+</html>

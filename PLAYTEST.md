@@ -1,13 +1,14 @@
 # NOCTURNE release playtest
 
-Use this pass with two people who have not read `server/caseData.js`. Separate devices are ideal. Budget 60 minutes for play and 10 minutes for notes.
+Use this pass with two people who have not read either case-data file. Separate devices are ideal. Run each file with a fresh pair when possible.
 
 ## Preflight
 
 1. Run `npm run check`.
 2. Start the game with `npm start`.
 3. In another terminal, run `npm run smoke -- http://localhost:4173`.
-4. Open a fresh case on one device and join through the copied invite link on the other.
+4. Run `npm run smoke:case2 -- http://localhost:4173`.
+5. Open a fresh case on one device and join through the copied invite link on the other.
 
 Release preflight passes when the automated suite is green, both players receive different roles, and the case moves to the briefing without a refresh.
 
@@ -69,3 +70,43 @@ Ask each player separately:
 5. Did the final explanation feel earned?
 
 Ship when both roles can finish without outside hints, neither role feels like a checklist, and players can explain the culprit using cross-role evidence rather than guessing.
+
+## File 02 — The Black-Sun Ledger
+
+Budget 45 minutes for play and 10 minutes for separate player notes.
+
+### Entry and consent
+
+- Open File 02 from the File 01 cover and confirm the visual identity and instructions are clearly different.
+- Join through its invite link. Each player should receive the same six-step tutorial with their own role label.
+- Choose mismatched modes and confirm readiness stays disabled. Match modes, ready only one player, and confirm the operation does not begin until the second player readies.
+- Confirm The Street sees a field dispatch while The Desk sees a ledger dispatch. Neither player should see the partner's facts or selected answer.
+
+### Live checkpoints
+
+- At checkpoint one, discuss the exact line number and protocol color before selecting.
+- Intentionally submit one wrong pair. Both choices should reset, the alert should rise by one, and feedback must not reveal the correct pair.
+- Lock only one correct half. The partner should see that the role is locked but not what they selected.
+- Complete the pair. Both should receive the same field record, but neither should advance until both acknowledge it.
+- Use the Radio Line and one private nudge. Verify the nudge repeats the communication task rather than solving the checkpoint.
+- Disconnect one player during checkpoint two, reconnect, and confirm role, checkpoint, alert, chat, and records are preserved.
+- Finish all four checkpoints. Each should require a different exchange of labels, numbers, rules, or physical observations.
+
+### Split final protocol
+
+- Confirm The Street receives only recovery and exit questions.
+- Confirm The Desk receives only controller and purpose questions.
+- Lock one final half. The other player should see only “sealed,” not the selected values.
+- Seal the second half and confirm both players reach the same ending.
+- Verify a prior alert changes a fully correct ending from “Silent Extraction” to “The City Hears the Alarm.”
+- Confirm the ending explains the truth, reviews all four submitted decisions, reports team activity, and introduces File 03.
+- Ready replay on one device only; the ending must remain until the partner also agrees.
+
+### File 02 usability checks
+
+- Complete a checkpoint and final protocol using keyboard controls.
+- At 390 px width, confirm the private dispatch, joint decision, Radio Line, and records become one readable vertical flow without horizontal scrolling.
+- Confirm no game information depends on sound, hover, color alone, or animation.
+- Ask both players whether the alert created useful pressure or merely discouraged experimentation.
+
+File 02 is ready when both players naturally read exact private details aloud, each role feels indispensable, one failed pair is recoverable without coaching, and the finale feels like the result of the four accumulated records.

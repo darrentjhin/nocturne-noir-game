@@ -79,6 +79,39 @@ test("expired and corrupt room stores fail closed", (t) => {
   assert.equal(store.load().size, 0);
 });
 
+test("file persistence restores a File 02 operation without private socket state", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "nocturne-store-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "rooms.json");
+  const now = 1_800_000_000_000;
+  const room = {
+    code: "SUN17",
+    caseId: "black-sun-ledger",
+    phase: "operation",
+    players: {
+      A: { socketId: "socket-a", name: "Mara", connected: true, resumeToken: "token-a" },
+      B: { socketId: "socket-b", name: "Jules", connected: true, resumeToken: "token-b" }
+    },
+    stageIndex: 2,
+    stageLocks: { A: "blackout-room", B: null },
+    stageResolved: false,
+    stageHistory: [{ id: "exchange-entry", outcome: { evidence: "record" } }],
+    alertLevel: 1,
+    activity: { A: { locks: 2, radioMessages: 1, hintsUsed: 0 }, B: { locks: 1, radioMessages: 2, hintsUsed: 0 }, pairAttempts: 2 },
+    updatedAt: now
+  };
+  const store = createRoomStore(file, { now: () => now });
+  store.saveNow(new Map([[room.code, room]]));
+  const restored = store.load().get(room.code);
+  assert.equal(restored.caseId, "black-sun-ledger");
+  assert.equal(restored.players.A.connected, false);
+  assert.equal(restored.players.A.socketId, null);
+  assert.equal(restored.stageIndex, 2);
+  assert.equal(restored.stageLocks.A, "blackout-room");
+  assert.equal(restored.alertLevel, 1);
+  assert.equal(restored.stageHistory.length, 1);
+});
+
 test("memory mode performs no filesystem work", () => {
   const store = createRoomStore();
   assert.equal(store.mode, "memory");

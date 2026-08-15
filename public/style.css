@@ -8,6 +8,11 @@
   --red: #b9273f;
   --red-bright: #d84a5e;
   --gold: #c9a24b;
+  --paper: var(--ink);
+  --cream: var(--ink);
+  --muted: var(--ink-dim);
+  --mono: 'Courier New', monospace;
+  --mobile-board-height: 340px;
 }
 
 * { box-sizing: border-box; }
@@ -157,6 +162,14 @@ html, body {
   letter-spacing: 2.4px;
   text-transform: uppercase;
 }
+.case-shelf { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; width: min(560px, 100%); margin: 14px auto 12px; }
+.case-file { display: block; border: 1px solid var(--line); background: rgba(19,15,12,.82); padding: 10px 12px; text-align: left; text-decoration: none; transition: border-color .16s ease, transform .16s ease; }
+.case-file:not(.active):hover { border-color: var(--gold); transform: translateY(-1px); }
+.case-file.active { border-color: var(--gold); box-shadow: inset 3px 0 var(--gold); }
+.case-file small, .case-file strong, .case-file em { display: block; }
+.case-file small { color: var(--gold); font-size: 8px; letter-spacing: 1px; }
+.case-file strong { color: var(--paper); font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1px; margin: 3px 0; }
+.case-file em { color: var(--ink-dim); font-size: 8px; font-style: normal; text-transform: uppercase; }
 .detective-preview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -365,6 +378,10 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
   .game-header { padding: 10px 14px; }
   .game-header-right { gap: 10px; }
   .case-name { display: none; }
+}
+
+@media (max-width: 560px) {
+  .case-shelf { grid-template-columns: 1fr; }
 }
 .role-pill {
   background: var(--red);
