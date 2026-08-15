@@ -40,6 +40,10 @@ function normalizeRoom(room, now, maxAgeMs) {
       lastFailure: typeof room.lastFailure === "string" ? room.lastFailure : null,
       alertLevel: Number.isInteger(room.alertLevel) ? Math.max(0, Math.min(3, room.alertLevel)) : 0,
       chat: Array.isArray(room.chat) ? room.chat.slice(-200) : [],
+      notes: {
+        A: typeof (room.notes && room.notes.A) === "string" ? room.notes.A.slice(0, 6000) : "",
+        B: typeof (room.notes && room.notes.B) === "string" ? room.notes.B.slice(0, 6000) : ""
+      },
       finalDrafts: { A: null, B: null, ...(room.finalDrafts || {}) },
       finalLocked: { A: false, B: false, ...(room.finalLocked || {}) },
       restartReady: { A: false, B: false, ...(room.restartReady || {}) },
@@ -64,6 +68,10 @@ function normalizeRoom(room, now, maxAgeMs) {
     puzzlesSolved: room.puzzlesSolved || {},
     board: room.board || { pins: {}, links: [] },
     chat: Array.isArray(room.chat) ? room.chat.slice(-200) : [],
+    notes: {
+      A: typeof (room.notes && room.notes.A) === "string" ? room.notes.A.slice(0, 6000) : "",
+      B: typeof (room.notes && room.notes.B) === "string" ? room.notes.B.slice(0, 6000) : ""
+    },
     questionsAsked: Array.isArray(room.questionsAsked) ? room.questionsAsked : [],
     interviewEvidence: room.interviewEvidence && typeof room.interviewEvidence === "object" ? room.interviewEvidence : {},
     interviewStates: room.interviewStates && typeof room.interviewStates === "object" ? room.interviewStates : {},

@@ -48,6 +48,7 @@ test("File 02 rooms begin sealed and require unanimous difficulty", () => {
   assert.equal(room.caseId, caseTwoData.id);
   assert.equal(room.phase, "lobby");
   assert.deepEqual(room.stageLocks, { A: null, B: null });
+  assert.deepEqual(room.notes, { A: "", B: "" });
   assert.equal(caseTwoDifficultyConfirmed(room), false);
   room.difficultyVotes = { A: "field", B: "field" };
   room.difficulty = "field";

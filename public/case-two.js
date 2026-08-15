@@ -16,6 +16,9 @@
   let tutorialOpenedForRoom = false;
   let resumeInFlight = false;
   let reconnecting = false;
+  let notebookDraft = "";
+  let notebookSaveTimer = null;
+  let notebookLoadId = 0;
   const finalDraft = {};
 
   function showScreen(id) {
@@ -88,6 +91,9 @@
     selectedStageChoice = null;
     selectedStageId = null;
     tutorialOpenedForRoom = false;
+    notebookDraft = "";
+    if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
+    notebookSaveTimer = null;
     Object.keys(finalDraft).forEach((key) => delete finalDraft[key]);
     saveSession(response);
     $("#lobby-code").textContent = response.code;
@@ -154,9 +160,83 @@
   });
 
   $$(".leave-operation").forEach((button) => button.addEventListener("click", () => {
+    flushNotebookSave();
     clearSession();
     window.location.assign("/case-two.html");
   }));
+
+  function updateNotebookMeta(status, tone) {
+    $("#notebook-count").textContent = `${notebookDraft.length} / 6000`;
+    if (status) $("#notebook-status").textContent = status;
+    $("#notebook-status").className = tone || "";
+  }
+
+  function saveNotebook() {
+    if (!myCode || !myRole) return;
+    if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
+    notebookSaveTimer = null;
+    updateNotebookMeta("Saving…", "saving");
+    socket.emit("notes:update", { text: notebookDraft }, (response) => {
+      updateNotebookMeta(response && response.ok ? "Saved privately" : (response && response.error) || "Could not save", response && response.ok ? "" : "error");
+    });
+  }
+
+  function flushNotebookSave() {
+    if (!notebookSaveTimer) return;
+    clearTimeout(notebookSaveTimer);
+    notebookSaveTimer = null;
+    saveNotebook();
+  }
+
+  function scheduleNotebookSave() {
+    if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
+    updateNotebookMeta("Saving…", "saving");
+    notebookSaveTimer = setTimeout(saveNotebook, 650);
+  }
+
+  function openNotebook() {
+    if (!myCode || !myRole) return;
+    $("#tutorial-modal").hidden = true;
+    const loadId = ++notebookLoadId;
+    $("#notebook-text").disabled = true;
+    $("#notebook-modal").hidden = false;
+    updateNotebookMeta("Loading private page…", "saving");
+    socket.emit("notes:get", {}, (response) => {
+      if (loadId !== notebookLoadId || $("#notebook-modal").hidden) return;
+      $("#notebook-text").disabled = false;
+      if (!response || !response.ok) return updateNotebookMeta((response && response.error) || "Could not load notes", "error");
+      notebookDraft = response.text || "";
+      $("#notebook-text").value = notebookDraft;
+      updateNotebookMeta("Saved privately", "");
+      $("#notebook-text").focus();
+    });
+  }
+
+  function closeNotebook() {
+    notebookLoadId += 1;
+    flushNotebookSave();
+    $("#notebook-text").disabled = false;
+    $("#notebook-modal").hidden = true;
+  }
+
+  $$(".open-notebook").forEach((button) => button.addEventListener("click", openNotebook));
+  $("#notebook-close").addEventListener("click", closeNotebook);
+  $("#notebook-done").addEventListener("click", closeNotebook);
+  $("#notebook-text").addEventListener("input", (event) => {
+    notebookDraft = event.target.value.slice(0, 6000);
+    scheduleNotebookSave();
+  });
+  $("#notebook-text").addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      saveNotebook();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!$("#notebook-modal").hidden) closeNotebook();
+    else if (!$("#tutorial-modal").hidden) $("#tutorial-modal").hidden = true;
+  });
 
   function tryResume(showLobby) {
     if (resumeInFlight) return;
@@ -558,6 +638,7 @@
 
   function openTutorial(index) {
     if (!caseData) return;
+    if (!$("#notebook-modal").hidden) closeNotebook();
     tutorialIndex = index || 0;
     renderTutorial();
     $("#tutorial-modal").hidden = false;

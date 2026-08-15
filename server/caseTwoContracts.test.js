@@ -41,6 +41,9 @@ test("File 02 supports separate-device invitations, reconnect, radio, and tutori
   assert.match(app, /socket\.on\("disconnect"/);
   assert.match(app, /case2:chat/);
   assert.match(html, /id="tutorial-modal"/);
+  assert.match(html, /id="notebook-modal"/);
+  assert.match(app, /socket\.emit\("notes:get"/);
+  assert.match(app, /socket\.emit\("notes:update"/);
   assert.match(html, /PRIVATE · DO NOT ASSUME PARTNER CAN SEE/);
 });
 

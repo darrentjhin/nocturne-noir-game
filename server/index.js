@@ -151,6 +151,7 @@ function freshRoom(code) {
     actUnlocked: 1,
     board: { pins: {}, links: [] },
     chat: [],
+    notes: { A: "", B: "" },
     questionsAsked: [],
     interviewEvidence: {},
     interviewStates: {},
@@ -314,6 +315,26 @@ io.on("connection", (socket) => {
     const joinedCase = isCaseTwoRoom(room) ? createClientCaseTwo(caseTwoData, takeRole) : createClientCase(caseData, takeRole);
     cb && cb({ ok: true, code, caseId: roomCaseId, role: takeRole, name: room.players[takeRole].name, resumeToken: roleToken, case: joinedCase });
     broadcast(room);
+  });
+
+  socket.on("notes:get", (payload = {}, cb) => {
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole) return cb && cb({ ok: false, error: "Join a case before opening the notebook." });
+    const note = room.notes && typeof room.notes[joinedRole] === "string" ? room.notes[joinedRole] : "";
+    cb && cb({ ok: true, text: note });
+  });
+
+  socket.on("notes:update", (payload = {}, cb) => {
+    if (!allowEvent("notes:update", 30, 60_000)) return cb && cb({ ok: false, error: "Notebook updates are arriving too quickly." });
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole || !payload || typeof payload.text !== "string") {
+      return cb && cb({ ok: false, error: "Join a case before saving notes." });
+    }
+    room.notes ||= { A: "", B: "" };
+    room.notes[joinedRole] = payload.text.replace(/\r\n?/g, "\n").slice(0, 6000);
+    room.updatedAt = Date.now();
+    roomStore.scheduleSave(rooms);
+    cb && cb({ ok: true, length: room.notes[joinedRole].length });
   });
 
   socket.on("difficulty:vote", (payload = {}, cb) => {
@@ -663,6 +684,7 @@ io.on("connection", (socket) => {
     room.actUnlocked = 1;
     room.board = { pins: {}, links: [] };
     room.chat = [];
+    room.notes = { A: "", B: "" };
     room.questionsAsked = [];
     room.interviewEvidence = {};
     room.interviewStates = {};

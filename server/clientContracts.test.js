@@ -77,6 +77,9 @@ test("invite, reconnect, tutorial, and ending recap paths remain present", () =>
   assert.match(appSource, /TUTORIAL_SEEN_KEY.*myCode.*myRole/s);
   assert.match(htmlSource, /HOW TO PLAY · YOUR OWN COPY|id="tutorial-role-label"/);
   assert.match(htmlSource, /Skip for me/);
+  assert.match(htmlSource, /id="notebook-modal"/);
+  assert.match(appSource, /socket\.emit\("notes:get"/);
+  assert.match(appSource, /socket\.emit\("notes:update"/);
 });
 
 test("the cover introduces both detective roles with original portrait art", () => {

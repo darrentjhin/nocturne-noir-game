@@ -24,6 +24,7 @@ Watch without coaching beyond the in-game tutorial.
 - When Present Evidence becomes appropriate, choose one wrong filed document first. The subject should reject its relevance without revealing the correct file; the right document should appear in the earned transcript.
 - At least one exact clue, time, name, or number should be sent over the Radio Line.
 - A player should be able to reopen filed evidence from Case Files.
+- Each player should write a private note, close and reopen the notebook, and confirm it autosaved. The partner must not see it unless it is deliberately sent over Radio.
 
 If either player asks “what am I supposed to do?” before trying one of the visible Next moves, record the exact screen and wording that failed them.
 
@@ -37,6 +38,7 @@ If either player asks “what am I supposed to do?” before trying one of the v
 - Complete one Case Thread. Both players should see its conclusion.
 - Try one plausible but unsupported Evidence Board pair. It should be rejected without consuming evidence, then complete one valid suspect-elimination link.
 - Disconnect one device for 15 seconds, reconnect, and confirm it reclaims the same role and case state.
+- Reopen the notebook after reconnecting and confirm that detective's private notes return unchanged.
 
 The case should feel demanding because players must compare information and infer relationships—not because controls or goals are unclear.
 
@@ -89,6 +91,7 @@ Budget 45 minutes for play and 10 minutes for separate player notes.
 - Lock only one correct half. The partner should see that the role is locked but not what they selected.
 - Complete the pair. Both should receive the same field record, but neither should advance until both acknowledge it.
 - Use the Radio Line and one private nudge. Verify the nudge repeats the communication task rather than solving the checkpoint.
+- Write a different private note on each device. Close and reopen both notebooks and confirm each detective sees only their own page.
 - Disconnect one player during checkpoint two, reconnect, and confirm role, checkpoint, alert, chat, and records are preserved.
 - Finish all four checkpoints. Each should require a different exchange of labels, numbers, rules, or physical observations.
 

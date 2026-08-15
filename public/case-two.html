@@ -110,6 +110,7 @@
         <span id="role-pill"></span>
         <span id="partner-status"></span>
         <button class="header-button" id="btn-operation-tutorial" type="button">Protocol</button>
+        <button class="header-button open-notebook" type="button">Notes</button>
         <button class="header-button leave-operation" type="button">Leave</button>
       </div>
     </header>
@@ -178,7 +179,7 @@
 
   <section class="screen centered" id="screen-convergence">
     <div class="protocol-shell">
-      <div class="eyebrow">FINAL CONVERGENCE · PRIVATE HALF</div>
+      <div class="protocol-topline"><div class="eyebrow">FINAL CONVERGENCE · PRIVATE HALF</div><button class="text-button open-notebook" type="button">Review my notes</button></div>
       <h1 id="final-headline"></h1>
       <p id="final-body"></p>
       <article class="protocol-card">
@@ -193,7 +194,7 @@
 
   <section class="screen centered" id="screen-ending">
     <div class="ending-shell">
-      <div class="eyebrow">OPERATION DEBRIEF</div>
+      <div class="protocol-topline"><div class="eyebrow">OPERATION DEBRIEF</div><button class="text-button open-notebook" type="button">Review my notes</button></div>
       <h1 id="ending-title"></h1>
       <p class="ending-body" id="ending-body"></p>
       <div class="ending-grid">
@@ -227,6 +228,19 @@
         <button class="button secondary" id="tutorial-back" type="button">Back</button>
         <button class="button primary" id="tutorial-next" type="button">Next</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal" id="notebook-modal" role="dialog" aria-modal="true" aria-labelledby="notebook-title" hidden>
+    <div class="tutorial-card notebook-card">
+      <button class="modal-close" id="notebook-close" type="button" aria-label="Close notebook">×</button>
+      <div class="eyebrow">PRIVATE DETECTIVE NOTEBOOK</div>
+      <h2 id="notebook-title">My Operation Notes</h2>
+      <p>Only your detective can read this page. Record exact labels, numbers, rules, theories, and questions for the other line.</p>
+      <label for="notebook-text">Private operation notes</label>
+      <textarea id="notebook-text" maxlength="6000" rows="14" placeholder="What did my partner report? What choice does it support?"></textarea>
+      <div class="notebook-footer"><span id="notebook-count">0 / 6000</span><span id="notebook-status" role="status" aria-live="polite">Saved automatically</span></div>
+      <button class="button primary" id="notebook-done" type="button">Done</button>
     </div>
   </div>
 

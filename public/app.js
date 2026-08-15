@@ -45,6 +45,9 @@
   let operationDraft = "";
   let operationFeedback = "";
   let hunchDraft = "";
+  let notebookDraft = "";
+  let notebookSaveTimer = null;
+  let notebookLoadId = 0;
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -182,6 +185,7 @@
   }
 
   function openTutorial(fromStep) {
+    if ($("#notebook-modal")?.classList.contains("active")) closeNotebook();
     tutorialStep = fromStep || 0;
     renderTutorialStep();
     $("#tutorial-modal").classList.add("active");
@@ -325,6 +329,9 @@
     caseData = res.case;
     chatInitialized = false;
     observedChatMessageIds.clear();
+    notebookDraft = "";
+    if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
+    notebookSaveTimer = null;
     saveSession(res.code, res.role, res.name || "", res.resumeToken || "");
     $("#lobby-code").textContent = myCode;
     showScreen("screen-lobby");
@@ -434,6 +441,7 @@
   // every state broadcast — otherwise a modal you're actively reading would
   // slam shut every time your partner so much as sends a chat message.
   function closeAllModals() {
+    if ($("#notebook-modal")?.classList.contains("active")) flushNotebookSave();
     $$(".modal-overlay").forEach((m) => m.classList.remove("active"));
     currentSceneLeadId = null;
     currentInterviewPersonId = null;
@@ -471,7 +479,7 @@
       if (modal.classList.contains("active")) {
         modal._returnFocus = document.activeElement;
         window.requestAnimationFrame(() => {
-          const target = modal.querySelector(".modal-x, button:not([disabled]), input:not([disabled])");
+          const target = modal.querySelector(".modal-x, button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled])");
           if (target) target.focus();
         });
       } else if (modal._returnFocus && modal._returnFocus.isConnected && !topActiveModal()) {
@@ -493,7 +501,7 @@
       return;
     }
     if (event.key !== "Tab") return;
-    const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')).filter(
+    const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')).filter(
       (element) => element.offsetParent !== null
     );
     if (!focusable.length) return;
@@ -505,6 +513,82 @@
     } else if (!event.shiftKey && document.activeElement === last) {
       event.preventDefault();
       first.focus();
+    }
+  });
+
+  // ---------- Private detective notebook ----------
+  function updateNotebookMeta(status, tone) {
+    const count = $("#notebook-count");
+    const statusNode = $("#notebook-status");
+    if (count) count.textContent = `${notebookDraft.length} / 6000`;
+    if (statusNode && status) statusNode.textContent = status;
+    if (statusNode) statusNode.className = tone || "";
+  }
+
+  function saveNotebook() {
+    if (!myCode || !myRole) return;
+    if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
+    notebookSaveTimer = null;
+    updateNotebookMeta("Saving…", "saving");
+    socket.emit("notes:update", { text: notebookDraft }, (response) => {
+      updateNotebookMeta(response && response.ok ? "Saved privately" : (response && response.error) || "Could not save", response && response.ok ? "" : "error");
+    });
+  }
+
+  function flushNotebookSave() {
+    if (!notebookSaveTimer) return;
+    clearTimeout(notebookSaveTimer);
+    notebookSaveTimer = null;
+    saveNotebook();
+  }
+
+  function scheduleNotebookSave() {
+    if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
+    updateNotebookMeta("Saving…", "saving");
+    notebookSaveTimer = setTimeout(saveNotebook, 650);
+  }
+
+  function openNotebook() {
+    if (!myCode || !myRole) return;
+    const modal = $("#notebook-modal");
+    const textarea = $("#notebook-text");
+    $("#tutorial-modal").classList.remove("active");
+    const loadId = ++notebookLoadId;
+    textarea.disabled = true;
+    modal.classList.add("active");
+    updateNotebookMeta("Loading private page…", "saving");
+    socket.emit("notes:get", {}, (response) => {
+      if (loadId !== notebookLoadId || !modal.classList.contains("active")) return;
+      textarea.disabled = false;
+      if (!response || !response.ok) {
+        updateNotebookMeta((response && response.error) || "Could not load notes", "error");
+        return;
+      }
+      notebookDraft = response.text || "";
+      textarea.value = notebookDraft;
+      updateNotebookMeta("Saved privately", "");
+      textarea.focus();
+    });
+  }
+
+  function closeNotebook() {
+    notebookLoadId += 1;
+    flushNotebookSave();
+    $("#notebook-text").disabled = false;
+    $("#notebook-modal").classList.remove("active");
+  }
+
+  $$(".open-notebook").forEach((button) => button.addEventListener("click", openNotebook));
+  $("#notebook-close").addEventListener("click", closeNotebook);
+  $("#notebook-done").addEventListener("click", closeNotebook);
+  $("#notebook-text").addEventListener("input", (event) => {
+    notebookDraft = event.target.value.slice(0, 6000);
+    scheduleNotebookSave();
+  });
+  $("#notebook-text").addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      saveNotebook();
     }
   });
 

@@ -90,6 +90,11 @@ async function run() {
     if (!joinedStreet.case.stages[0].roleBrief.facts.join(" ").includes("COBALT")) throw new Error("Street private dispatch missing");
     if (!joinedDesk.case.stages[0].roleBrief.facts.join(" ").includes("access index")) throw new Error("Desk private dispatch missing");
 
+    await ack(street, "notes:update", { text: "Street private note: Line VI." });
+    const streetNotes = await ack(street, "notes:get", {});
+    const deskNotes = await ack(desk, "notes:get", {});
+    if (streetNotes.text !== "Street private note: Line VI." || deskNotes.text !== "") throw new Error("private notebook crossed detective roles");
+
     await stateAfter(
       street,
       (state) => state.difficultyVotes.A === "field" && !state.difficulty,
@@ -129,6 +134,7 @@ async function run() {
       "File 02 Radio Line"
     );
     if (latest.chat[0].text !== "Line VI. Which protocol color?") throw new Error("radio message changed in transit");
+    if (JSON.stringify(latest).includes("Street private note")) throw new Error("private notebook leaked into shared room state");
 
     const hint = await ack(desk, "case2:hint", {});
     if (!hint.hint.includes("line number")) throw new Error("role-private nudge missing");
@@ -190,6 +196,8 @@ async function run() {
         );
         const resumed = await resumedPromise;
         if (resumed.role !== "B") throw new Error("Desk did not reclaim its private role");
+        const resumedDeskNotes = await ack(desk, "notes:get", {});
+        if (resumedDeskNotes.text !== "") throw new Error("Desk resumed with the Street notebook");
       }
       await stateAfter(
         street,
@@ -235,6 +243,8 @@ async function run() {
       "joint File 02 replay"
     );
     if (latest.stageHistory.length || latest.finalLocked.A || latest.finalLocked.B) throw new Error("File 02 replay did not reset private state");
+    const resetStreetNotes = await ack(street, "notes:get", {});
+    if (resetStreetNotes.text !== "") throw new Error("File 02 replay did not clear the prior notebook");
 
     console.log(`File 02 socket smoke passed: ${created.code}, four paired checkpoints and all shared gates verified.`);
   } finally {

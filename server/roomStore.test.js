@@ -57,6 +57,7 @@ test("file persistence restores a resumable case without stale sockets", (t) => 
   assert.equal(room.difficulty, null);
   assert.deepEqual(room.hunches, { A: null, B: null });
   assert.deepEqual(room.hintState, { threadFailures: 0 });
+  assert.deepEqual(room.notes, { A: "", B: "" });
   assert.equal(room.progressAt, now);
   assert.deepEqual(room.questionsAsked, ["victor-where", "victor-finance"]);
   assert.deepEqual(room.confrontationsSolved, ["dane-payments"]);
@@ -97,6 +98,7 @@ test("file persistence restores a File 02 operation without private socket state
     stageResolved: false,
     stageHistory: [{ id: "exchange-entry", outcome: { evidence: "record" } }],
     alertLevel: 1,
+    notes: { A: "Line VI", B: "MARR-17" },
     activity: { A: { locks: 2, radioMessages: 1, hintsUsed: 0 }, B: { locks: 1, radioMessages: 2, hintsUsed: 0 }, pairAttempts: 2 },
     updatedAt: now
   };
@@ -110,6 +112,7 @@ test("file persistence restores a File 02 operation without private socket state
   assert.equal(restored.stageLocks.A, "blackout-room");
   assert.equal(restored.alertLevel, 1);
   assert.equal(restored.stageHistory.length, 1);
+  assert.deepEqual(restored.notes, { A: "Line VI", B: "MARR-17" });
 });
 
 test("memory mode performs no filesystem work", () => {

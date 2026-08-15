@@ -32,6 +32,7 @@ function freshCaseTwoRoom(code) {
     lastFailure: null,
     alertLevel: 0,
     chat: [],
+    notes: { A: "", B: "" },
     finalDrafts: { A: null, B: null },
     finalLocked: { A: false, B: false },
     restartReady: { A: false, B: false },

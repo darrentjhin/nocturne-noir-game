@@ -259,6 +259,7 @@ input, select {
 .record-card p { color: var(--muted); font: 11px/1.5 var(--type); }
 
 .protocol-shell { max-width: 790px; }
+.protocol-topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .protocol-shell > p { color: var(--muted); font: 16px/1.7 var(--type); }
 .protocol-card { padding: 26px; margin: 26px 0 16px; }
 .protocol-field { padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -304,6 +305,13 @@ input, select {
 .tutorial-dot { width: 25px; height: 3px; background: var(--line); }
 .tutorial-dot.active { background: var(--signal); }
 .tutorial-actions { display: flex; justify-content: space-between; }
+.notebook-card { min-height: 0; }
+.notebook-card > p { min-height: 0; }
+.notebook-card textarea { width: 100%; min-height: 280px; resize: vertical; border: 1px solid var(--line); border-left: 3px solid var(--signal); background: #061012; color: var(--paper); padding: 14px; font: 13px/1.65 var(--mono); }
+.notebook-footer { display: flex; justify-content: space-between; gap: 12px; min-height: 24px; padding-top: 8px; color: var(--muted); font-size: 10px; }
+#notebook-status.saving { color: var(--amber); }
+#notebook-status.error { color: var(--alarm); }
+.notebook-card > .button { width: 100%; margin-top: 12px; }
 
 .connection-banner { position: fixed; z-index: 120; top: 12px; left: 50%; transform: translate(-50%, -90px); opacity: 0; padding: 9px 14px; background: var(--alarm); color: white; font-size: 10px; transition: .2s; }
 .connection-banner.show { transform: translate(-50%, 0); opacity: 1; }
@@ -346,6 +354,8 @@ input, select {
   .record-grid, #ending-decisions { grid-template-columns: 1fr; }
   .ready-panel .button { min-width: 0; width: 100%; }
   .protocol-shell > h1, .ending-shell > h1 { font-size: 42px; }
+  .protocol-topline { align-items: flex-start; }
+  .notebook-card textarea { min-height: 48vh; }
   .tutorial-card { padding: 26px; }
 }
 

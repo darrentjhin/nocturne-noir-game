@@ -91,12 +91,20 @@ async function run() {
     if (!joinedStreet.case.cooperativeOperation.roleBrief.brief.includes("BERTH SIX")) throw new Error("Street did not receive its private Cross-Wire copy");
     if (!joinedDeskResponse.case.cooperativeOperation.roleBrief.brief.includes("dispatch index")) throw new Error("Desk did not receive its private Cross-Wire copy");
 
-    await stateAfter(
+    await ack(street, "notes:update", { text: "Street private note: berth six, line 138." });
+    const streetNotes = await ack(street, "notes:get", {});
+    const deskNotes = await ack(desk, "notes:get", {});
+    if (streetNotes.text !== "Street private note: berth six, line 138." || deskNotes.text !== "") {
+      throw new Error("private notebook crossed detective roles");
+    }
+
+    const postNotebookState = await stateAfter(
       street,
       (state) => state.phase === "briefing" && state.difficultyVotes.A === "detective" && !state.difficulty,
       () => ack(street, "difficulty:vote", { difficulty: "detective" }),
       "Street difficulty vote"
     );
+    if (JSON.stringify(postNotebookState).includes("Street private note")) throw new Error("private notebook leaked into shared room state");
     await stateAfter(
       street,
       (state) => state.phase === "briefing" && state.difficulty === "detective",
@@ -327,6 +335,8 @@ async function run() {
     if (latest.found.A.length || latest.found.B.length || latest.briefingReady.A || latest.briefingReady.B || latest.difficulty || latest.operation.solved) {
       throw new Error("Restart did not reset the case cleanly");
     }
+    const resetStreetNotes = await ack(street, "notes:get", {});
+    if (resetStreetNotes.text !== "") throw new Error("Restart did not clear the prior notebook");
     console.log(`Socket smoke passed: ${created.code}, all four shared transitions required both detectives.`);
   } finally {
     street.disconnect();

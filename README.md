@@ -17,7 +17,7 @@ Each player receives private information. The server sends neither role the part
 
 A filmmaker vanishes before her premiere. The Street reconstructs physical scenes by choosing a field focus; The Desk conducts portrait-driven interviews using Rapport, Direct, Pressure, or an exact piece of filed evidence. The pair must recover 17 records, break two contradictions, establish three structured Case Threads, eliminate two alternate suspects, and complete a private Cross-Wire before agreeing on a four-part accusation.
 
-Additional systems include three unanimous difficulty modes, searchable Case Files, lead states, adaptive nudges, private opening hunches, a joint ending debrief, reconnect support, and mutual readiness for every major transition.
+Additional systems include three unanimous difficulty modes, searchable Case Files, lead states, adaptive nudges, private opening hunches, a private autosaving detective notebook, a joint ending debrief, reconnect support, and mutual readiness for every major transition.
 
 ## File 02 — The Black-Sun Ledger
 
@@ -31,6 +31,7 @@ This is a different game, not a reskin of File 01:
 - Players must describe their private dispatches, choose independently, and lock a correct pair.
 - A wrong pair resets both choices and raises a shared alert level that changes the ending.
 - A solved checkpoint reveals a shared field record, but the next location opens only after both players acknowledge it.
+- Each detective has a private autosaving notebook that survives reconnects without exposing its contents to the partner.
 - The finale is split: The Street seals the physical recovery plan while The Desk identifies the controller and the network's purpose.
 - Tutorial, difficulty, checkpoint advance, final resolution, and replay all preserve two-player consent.
 
@@ -60,7 +61,7 @@ npm run smoke -- http://localhost:4173
 npm run smoke:case2 -- http://localhost:4173
 ```
 
-The File 01 smoke completes every clue, interview prerequisite, contradiction, theory, deduction, Cross-Wire half, mutual transition, accusation, ending, and replay. The File 02 smoke tests wrong-case routing, mismatched difficulty, private role payloads, a recoverable paired failure, all four checkpoints, mutual acknowledgements, the split final protocol, ending, and replay.
+The File 01 smoke completes every clue, interview prerequisite, contradiction, theory, deduction, Cross-Wire half, mutual transition, accusation, ending, notebook privacy, and replay. The File 02 smoke tests wrong-case routing, mismatched difficulty, private role payloads and notebooks, a recoverable paired failure, all four checkpoints, mutual acknowledgements, the split final protocol, ending, and replay.
 
 See `PLAYTEST.md` for the human two-device QA pass.
 
