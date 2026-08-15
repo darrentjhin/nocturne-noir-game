@@ -150,20 +150,11 @@ html, body {
   font-style: italic;
 }
 
-.game-facts {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
+.cover-player-count {
   margin: -18px 0 24px;
-}
-.game-facts span {
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 5px 10px;
-  color: var(--ink-dim);
-  font-size: 10px;
-  letter-spacing: 0.6px;
+  color: var(--gold);
+  font-size: 11px;
+  letter-spacing: 2.4px;
   text-transform: uppercase;
 }
 
