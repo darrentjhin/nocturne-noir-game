@@ -91,9 +91,10 @@ async function run() {
     if (!joinedDesk.case.stages[0].roleBrief.facts.join(" ").includes("access index")) throw new Error("Desk private dispatch missing");
 
     await ack(street, "notes:update", { text: "Street private note: Line VI." });
+    await ack(street, "notes:append", { text: "[Radio · Smoke Desk] Protocol is COBALT." });
     const streetNotes = await ack(street, "notes:get", {});
     const deskNotes = await ack(desk, "notes:get", {});
-    if (streetNotes.text !== "Street private note: Line VI." || deskNotes.text !== "") throw new Error("private notebook crossed detective roles");
+    if (streetNotes.text !== "Street private note: Line VI.\n[Radio · Smoke Desk] Protocol is COBALT." || deskNotes.text !== "") throw new Error("private notebook crossed detective roles");
 
     await stateAfter(
       street,

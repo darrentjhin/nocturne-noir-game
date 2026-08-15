@@ -59,7 +59,7 @@ function stateAfter(socket, predicate, action, label) {
 }
 
 async function run() {
-  const street = await connect();
+  let street = await connect();
   const desk = await connect();
   try {
     const created = await ack(street, "room:create", {});
@@ -92,9 +92,10 @@ async function run() {
     if (!joinedDeskResponse.case.cooperativeOperation.roleBrief.brief.includes("dispatch index")) throw new Error("Desk did not receive its private Cross-Wire copy");
 
     await ack(street, "notes:update", { text: "Street private note: berth six, line 138." });
+    await ack(street, "notes:append", { text: "[Radio · Smoke Desk] Confirm MARROW." });
     const streetNotes = await ack(street, "notes:get", {});
     const deskNotes = await ack(desk, "notes:get", {});
-    if (streetNotes.text !== "Street private note: berth six, line 138." || deskNotes.text !== "") {
+    if (streetNotes.text !== "Street private note: berth six, line 138.\n[Radio · Smoke Desk] Confirm MARROW." || deskNotes.text !== "") {
       throw new Error("private notebook crossed detective roles");
     }
 
@@ -302,11 +303,38 @@ async function run() {
         `accusation ${Object.keys(update)[0]}`
       );
     }
-    await stateAfter(street, (state) => state.accusationDraft.readyA, () => street.emit("accusation:ready", { ready: true }), "Street ready");
+    await stateAfter(street, (state) => state.accusationDraft.readyA, () => ack(street, "accusation:ready", { ready: true }), "Street ready");
+    await stateAfter(
+      desk,
+      (state) => state.phase === "accusation" && !state.players.A.connected && !state.accusationDraft.readyA,
+      () => street.disconnect(),
+      "disconnected final readiness cleared"
+    );
+    const absentPartner = await softAck(desk, "accusation:ready", { ready: true });
+    if (!absentPartner.error.includes("partner must be connected")) throw new Error("Final call did not explain the two-player connection gate");
+    const resumedStreet = await connect();
+    let resumedStreetJoin;
+    await stateAfter(
+      desk,
+      (state) => state.phase === "accusation" && state.players.A.connected,
+      () => {
+        resumedStreetJoin = ack(resumedStreet, "room:join", {
+          code: created.code,
+          role: "A",
+          name: "Smoke Street",
+          resumeToken: joinedStreet.resumeToken
+        });
+        return resumedStreetJoin;
+      },
+      "Street final-call reconnect"
+    );
+    await resumedStreetJoin;
+    street = resumedStreet;
+    await stateAfter(street, (state) => state.accusationDraft.readyB && !state.accusationDraft.readyA, () => ack(desk, "accusation:ready", { ready: true }), "Desk ready");
     latest = await stateAfter(
       street,
       (state) => state.phase === "ending",
-      () => desk.emit("accusation:ready", { ready: true }),
+      () => ack(street, "accusation:ready", { ready: true }),
       "ending"
     );
     if (

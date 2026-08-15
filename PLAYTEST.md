@@ -25,6 +25,7 @@ Watch without coaching beyond the in-game tutorial.
 - At least one exact clue, time, name, or number should be sent over the Radio Line.
 - A player should be able to reopen filed evidence from Case Files.
 - Each player should write a private note, close and reopen the notebook, and confirm it autosaved. The partner must not see it unless it is deliberately sent over Radio.
+- Save a partner Radio message directly into Notes and confirm the exact speaker and message appear without copying or exposing the rest of the notebook.
 
 If either player asks “what am I supposed to do?” before trying one of the visible Next moves, record the exact screen and wording that failed them.
 
@@ -49,6 +50,7 @@ The case should feel demanding because players must compare information and infe
 - Both players can review the same four-part theory: who, where, why, and how.
 - Editing any answer clears both ready checks.
 - One ready player cannot submit alone.
+- Ready one detective, disconnect that device, and confirm its readiness clears. The connected detective must be unable to ready or resolve the call until the same role reconnects.
 - The ending explains the submitted theory, the correct theory when needed, the supporting evidence, and why the two strongest alternative suspects fail.
 - The ending compares sealed hunches, reports team activity, explains the completed Cross-Wire, and reveals the File 02 black-sun continuation hook.
 - One player marking “Play Again” must not remove the other from the ending recap; restart only after both agree.

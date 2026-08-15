@@ -33,7 +33,11 @@ module.exports = {
     },
     {
       title: "Describe before you decide",
-      body: "Each checkpoint asks both detectives a different question. Read your private facts aloud on the Radio Line, then ask for the exact missing fact you need."
+      body: "Each checkpoint asks both detectives a different question. Read your private facts aloud on the Radio Line, then ask for the exact missing fact you need. Save crucial transmissions into your private Notes when you will need them later."
+    },
+    {
+      title: "Know what stays private",
+      body: "Notes autosave to your detective role and survive reconnects, but your partner cannot read them. Anything they must act on belongs on the Radio Line; any Radio message can be saved back into your private notebook."
     },
     {
       title: "Lock independently",

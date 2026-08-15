@@ -61,6 +61,10 @@ test("the final theory asks who, where, why, and how", () => {
   assert.match(htmlSource, /id="accuse-methods"/);
   assert.match(appSource, /accusation:update", \{ method: method\.id \}/);
   assert.match(appSource, /All four parts matched the evidence/);
+  assert.match(htmlSource, /id="accusation-connection"/);
+  assert.match(appSource, /partnerConnected/);
+  assert.match(serverSource, /partner must be connected before you can ready the final call/);
+  assert.match(serverSource, /room\.phase === "accusation"[\s\S]*?readyA/);
 });
 
 test("invite, reconnect, tutorial, and ending recap paths remain present", () => {
@@ -80,6 +84,9 @@ test("invite, reconnect, tutorial, and ending recap paths remain present", () =>
   assert.match(htmlSource, /id="notebook-modal"/);
   assert.match(appSource, /socket\.emit\("notes:get"/);
   assert.match(appSource, /socket\.emit\("notes:update"/);
+  assert.match(appSource, /socket\.emit\("notes:append"/);
+  assert.match(appSource, /radio-note-save/);
+  assert.match(appSource, /appendNotebookLine/);
 });
 
 test("the cover introduces both detective roles with original portrait art", () => {

@@ -138,6 +138,11 @@
       body: "You and your partner each receive this guide. The Street reconstructs physical scenes; The Desk questions witnesses and obtains records. Neither player can solve the case alone, so use the Radio Line to compare exact names, times, evidence IDs, and codes."
     },
     {
+      icon: "🗒️",
+      title: "Keep a private working theory",
+      body: "My Notes is visible only to you and autosaves with your role. Use it for theories and questions; use the Radio Line for anything your partner must know. You can save an important Radio message straight into your notebook."
+    },
+    {
       icon: "🔎",
       title: "The Street tests a theory",
       body: "At each physical scene, choose a reconstruction focus before examining evidence: access, mechanism, timeline, identity, or staging. The wrong focus gives useful feedback and never destroys a lead. Completed field notes open deeper searches."
@@ -576,6 +581,34 @@
     flushNotebookSave();
     $("#notebook-text").disabled = false;
     $("#notebook-modal").classList.remove("active");
+  }
+
+  function appendNotebookLine(line, control) {
+    if (!myCode || !myRole) return;
+    flushNotebookSave();
+    const radioAlert = $("#radio-alert");
+    if (radioAlert) {
+      radioAlert.hidden = true;
+      radioAlert.dataset.unreadCount = "0";
+    }
+    if (control) {
+      control.disabled = true;
+      control.textContent = "Saving…";
+    }
+    const cleanLine = String(line || "").replace(/\r\n?/g, "\n").trim();
+    socket.emit("notes:append", { text: cleanLine }, (saved) => {
+      if (!saved || !saved.ok) {
+        if (control) {
+          control.disabled = !!(saved && saved.soft);
+          control.textContent = saved && saved.soft ? "Notebook full" : "Try again";
+        }
+        return;
+      }
+      notebookDraft = saved.text;
+      $("#notebook-text").value = saved.text;
+      updateNotebookMeta("Saved privately", "");
+      if (control) control.textContent = "Saved to notes";
+    });
   }
 
   $$(".open-notebook").forEach((button) => button.addEventListener("click", openNotebook));
@@ -2231,15 +2264,19 @@
     const log = $("#chat-log");
     const filed = new Set([...state.found.A, ...state.found.B]);
     log.innerHTML = state.chat
-      .map((m) => {
+      .map((m, index) => {
         const time = new Date(m.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
         const message = escapeHtml(m.text).replace(/\b([AB]\d{1,2})\b/g, (match, clueId) =>
           filed.has(clueId) ? `<button type="button" class="radio-evidence-link" data-clue-id="${clueId}" title="Open ${clueId}">${clueId}</button>` : match
         );
-        return `<div class="chat-msg"><span class="chat-time">${time}</span><span class="chat-name">${escapeHtml(m.name)}:</span><span class="chat-text">${message}</span></div>`;
+        return `<div class="chat-msg"><div class="chat-message-copy"><span class="chat-time">${time}</span><span class="chat-name">${escapeHtml(m.name)}:</span><span class="chat-text">${message}</span></div><button type="button" class="radio-note-save" data-chat-index="${index}" aria-label="File this transmission in my private notes">Save to notes</button></div>`;
       })
       .join("");
     $$(".radio-evidence-link").forEach((button) => button.addEventListener("click", () => openDoc(button.dataset.clueId)));
+    $$(".radio-note-save").forEach((button) => button.addEventListener("click", () => {
+      const radioMessage = state.chat[Number(button.dataset.chatIndex)];
+      if (radioMessage) appendNotebookLine(`[Radio · ${radioMessage.name}] ${radioMessage.text}`, button);
+    }));
     log.scrollTop = log.scrollHeight;
   }
 
@@ -2369,20 +2406,38 @@
 
     const nameA = (state.players.A && state.players.A.name) || "Detective A";
     const nameB = (state.players.B && state.players.B.name) || "Detective B";
+    const partnerRole = myRole === "A" ? "B" : "A";
+    const partnerConnected = !!(state.players[partnerRole] && state.players[partnerRole].connected);
+    const partnerName = partnerRole === "A" ? nameA : nameB;
+    const connection = $("#accusation-connection");
+    connection.textContent = partnerConnected
+      ? "Both detectives are on the line. The call resolves only after each of you readies this exact theory."
+      : `${partnerName} disconnected. Final readiness is paused until they reclaim their role.`;
+    connection.classList.toggle("waiting", !partnerConnected);
     $("#ready-A-label").textContent = nameA + " ready" + (myRole === "A" ? " (you)" : "");
     $("#ready-B-label").textContent = nameB + " ready" + (myRole === "B" ? " (you)" : "");
     $("#ready-A").checked = draft.readyA;
     $("#ready-B").checked = draft.readyB;
-    $("#ready-A").disabled = myRole !== "A";
-    $("#ready-B").disabled = myRole !== "B";
+    $("#ready-A").disabled = myRole !== "A" || !partnerConnected;
+    $("#ready-B").disabled = myRole !== "B" || !partnerConnected;
   }
 
   $("#ready-A").addEventListener("change", (e) => {
-    if (myRole === "A") socket.emit("accusation:ready", { ready: e.target.checked });
+    if (myRole === "A") socket.emit("accusation:ready", { ready: e.target.checked }, (response) => {
+      if (response && response.ok) return;
+      e.target.checked = !!(latestState && latestState.accusationDraft.readyA);
+      $("#accusation-connection").textContent = (response && response.error) || "Final readiness could not be changed.";
+      $("#accusation-connection").classList.add("waiting");
+    });
     else e.target.checked = latestState.accusationDraft.readyA;
   });
   $("#ready-B").addEventListener("change", (e) => {
-    if (myRole === "B") socket.emit("accusation:ready", { ready: e.target.checked });
+    if (myRole === "B") socket.emit("accusation:ready", { ready: e.target.checked }, (response) => {
+      if (response && response.ok) return;
+      e.target.checked = !!(latestState && latestState.accusationDraft.readyB);
+      $("#accusation-connection").textContent = (response && response.error) || "Final readiness could not be changed.";
+      $("#accusation-connection").classList.add("waiting");
+    });
     else e.target.checked = latestState.accusationDraft.readyB;
   });
 

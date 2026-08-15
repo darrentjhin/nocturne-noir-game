@@ -219,6 +219,29 @@
     $("#notebook-modal").hidden = true;
   }
 
+  function appendNotebookLine(line, control) {
+    if (!myCode || !myRole) return;
+    flushNotebookSave();
+    if (control) {
+      control.disabled = true;
+      control.textContent = "SAVING…";
+    }
+    const cleanLine = String(line || "").replace(/\r\n?/g, "\n").trim();
+    socket.emit("notes:append", { text: cleanLine }, (saved) => {
+      if (!saved || !saved.ok) {
+        if (control) {
+          control.disabled = !!(saved && saved.soft);
+          control.textContent = saved && saved.soft ? "NOTEBOOK FULL" : "TRY AGAIN";
+        }
+        return;
+      }
+      notebookDraft = saved.text;
+      $("#notebook-text").value = saved.text;
+      updateNotebookMeta("Saved privately", "");
+      if (control) control.textContent = "SAVED TO NOTES";
+    });
+  }
+
   $$(".open-notebook").forEach((button) => button.addEventListener("click", openNotebook));
   $("#notebook-close").addEventListener("click", closeNotebook);
   $("#notebook-done").addEventListener("click", closeNotebook);
@@ -409,6 +432,13 @@
       const timestamp = new Date(message.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       item.innerHTML = `<span>${message.role === myRole ? "YOU" : roleName(message.role)} · ${timestamp}</span><p></p>`;
       item.querySelector("p").textContent = message.text;
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "radio-note-save";
+      save.textContent = "SAVE TO NOTES";
+      save.setAttribute("aria-label", "File this transmission in my private notes");
+      save.addEventListener("click", () => appendNotebookLine(`[Radio · ${message.name}] ${message.text}`, save));
+      item.appendChild(save);
       log.appendChild(item);
     });
     if (wasNearBottom || state.chat.length < 3) log.scrollTop = log.scrollHeight;
@@ -630,7 +660,7 @@
     $("#tutorial-step").textContent = `PROTOCOL ${tutorialIndex + 1} OF ${caseData.tutorial.length} · ${myRole ? roleName(myRole) : "BOTH DETECTIVES"}`;
     $("#tutorial-title").textContent = step.title;
     $("#tutorial-body").textContent = step.body;
-    $("#tutorial-icon").textContent = ["⌁", "◈", "▣", "↠", "△", "◎"][tutorialIndex] || "⌁";
+    $("#tutorial-icon").textContent = ["⌁", "◈", "✎", "▣", "↠", "△", "◎"][tutorialIndex] || "⌁";
     $("#tutorial-dots").innerHTML = caseData.tutorial.map((_, index) => `<span class="tutorial-dot${index === tutorialIndex ? " active" : ""}"></span>`).join("");
     $("#tutorial-back").disabled = tutorialIndex === 0;
     $("#tutorial-next").textContent = tutorialIndex === caseData.tutorial.length - 1 ? "Return to operation" : "Next";

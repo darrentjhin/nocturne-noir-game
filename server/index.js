@@ -337,6 +337,23 @@ io.on("connection", (socket) => {
     cb && cb({ ok: true, length: room.notes[joinedRole].length });
   });
 
+  socket.on("notes:append", (payload = {}, cb) => {
+    if (!allowEvent("notes:append", 30, 60_000)) return cb && cb({ ok: false, error: "Notebook updates are arriving too quickly." });
+    const room = rooms.get(joinedCode);
+    const line = payload && typeof payload.text === "string" ? payload.text.replace(/\r\n?/g, "\n").trim() : "";
+    if (!room || !joinedRole || !line || line.length > 1000) {
+      return cb && cb({ ok: false, error: "That transmission cannot be filed in the notebook." });
+    }
+    room.notes ||= { A: "", B: "" };
+    const base = typeof room.notes[joinedRole] === "string" ? room.notes[joinedRole].replace(/\s+$/, "") : "";
+    const next = base ? `${base}\n${line}` : line;
+    if (next.length > 6000) return cb && cb({ ok: false, soft: true, error: "Your private notebook is full." });
+    room.notes[joinedRole] = next;
+    room.updatedAt = Date.now();
+    roomStore.scheduleSave(rooms);
+    cb && cb({ ok: true, text: next, length: next.length });
+  });
+
   socket.on("difficulty:vote", (payload = {}, cb) => {
     if (!allowEvent("difficulty:vote", 12, 10_000)) return cb && cb({ ok: false, error: "Slow down and compare the difficulty descriptions together." });
     const room = rooms.get(joinedCode);
@@ -652,20 +669,34 @@ io.on("connection", (socket) => {
     broadcast(room);
   });
 
-  socket.on("accusation:ready", (payload = {}) => {
+  socket.on("accusation:ready", (payload = {}, cb) => {
     const { ready } = payload || {};
     const room = rooms.get(joinedCode);
-    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "accusation" || !accusationUnlocked(room)) return;
+    if (!isCaseOneRoom(room) || !joinedRole || room.phase !== "accusation" || !accusationUnlocked(room)) {
+      return cb && cb({ ok: false, error: "The final call is not ready." });
+    }
+    const partnerRole = joinedRole === "A" ? "B" : "A";
+    if (!room.players[partnerRole] || !room.players[partnerRole].connected) {
+      return cb && cb({ ok: false, soft: true, error: "Your partner must be connected before you can ready the final call." });
+    }
     const { suspect, location, motive, method } = room.accusationDraft;
-    if (!suspect || !location || !motive || !method) return;
+    if (!suspect || !location || !motive || !method) {
+      return cb && cb({ ok: false, soft: true, error: "Complete who, where, why, and how before readying." });
+    }
     room.accusationDraft[joinedRole === "A" ? "readyA" : "readyB"] = !!ready;
 
-    if (room.accusationDraft.readyA && room.accusationDraft.readyB) {
+    if (
+      room.accusationDraft.readyA &&
+      room.accusationDraft.readyB &&
+      room.players.A && room.players.A.connected &&
+      room.players.B && room.players.B.connected
+    ) {
       room.result = scoreAccusation({ suspect, location, motive, method });
       room.completedAt = Date.now();
       room.phase = "ending";
     }
     broadcast(room);
+    cb && cb({ ok: true });
   });
 
   socket.on("restart:ready", (payload = {}) => {
@@ -862,6 +893,9 @@ io.on("connection", (socket) => {
     if (room.players[joinedRole]) room.players[joinedRole].connected = false;
     if (room.phase === "briefing" && room.briefingReady) room.briefingReady[joinedRole] = false;
     if (room.phase === "investigation" && room.callReady) room.callReady[joinedRole] = false;
+    if (room.phase === "accusation" && room.accusationDraft) {
+      room.accusationDraft[joinedRole === "A" ? "readyA" : "readyB"] = false;
+    }
     if (room.phase === "ending" && room.restartReady) room.restartReady[joinedRole] = false;
     broadcast(room);
     // Keep persisted cases resumable for a full day. Memory-only cases use a

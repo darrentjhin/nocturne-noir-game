@@ -28,9 +28,9 @@ body {
   font-family: var(--mono);
 }
 
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
   outline: 2px solid var(--signal);
   outline-offset: 3px;
 }
@@ -247,6 +247,9 @@ input, select {
 .radio-message.mine { border-color: var(--signal-dim); }
 .radio-message span { color: var(--signal); font-size: 8px; text-transform: uppercase; }
 .radio-message p { margin: 3px 0; color: #c2bca8; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.radio-note-save { border: 0; background: none; color: var(--muted); cursor: pointer; font: 8px var(--mono); padding: 2px 0; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.radio-note-save:hover, .radio-note-save:focus-visible { color: var(--signal); }
+.radio-note-save:disabled { cursor: default; opacity: .72; }
 .radio-empty { color: #53676a; font-size: 10px; }
 .radio-form { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
 .radio-form input { padding: 9px; font-size: 11px; min-width: 0; }
