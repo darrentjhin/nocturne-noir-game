@@ -6,7 +6,10 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node server/index.js"
+    "dev": "node server/index.js",
+    "smoke": "node scripts/socket-smoke.js",
+    "test": "node --test server/*.test.js",
+    "check": "node --check server/index.js && node --check server/clientCase.js && node --check server/gameLogic.js && node --check server/roomStore.js && node --check server/caseData.js && node --check public/app.js && npm test"
   },
   "dependencies": {
     "express": "^4.19.2",

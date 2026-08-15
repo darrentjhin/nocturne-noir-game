@@ -15,7 +15,8 @@
 <div id="grain"></div>
 <div id="rain-overlay"></div>
 
-<button id="sound-toggle" class="sound-toggle" title="Toggle ambient rain" aria-label="Toggle ambient sound">🔇</button>
+<button id="sound-toggle" class="sound-toggle" title="Toggle ambient rain" aria-label="Toggle ambient sound" aria-pressed="false">🔇</button>
+<div id="connection-banner" class="connection-banner" role="status" aria-live="polite"></div>
 
 <!-- SCREEN: Landing -->
 <section id="screen-landing" class="screen active">
@@ -24,6 +25,13 @@
     <h1 class="title">NOCTURNE</h1>
     <p class="subtitle">a two-detective case</p>
     <div class="tagline">The city doesn't give up the truth to just one of you.</div>
+    <div class="game-facts" aria-label="Game details">
+      <span>Exactly 2 players</span>
+      <span>45–60 minutes</span>
+      <span>Evidence-driven difficulty</span>
+      <span>Separate devices recommended</span>
+      <span>No account required</span>
+    </div>
 
     <div class="card-panel">
       <div class="tabs">
@@ -38,6 +46,7 @@
       </div>
 
       <div class="tab-panel" id="tab-join">
+        <div id="invite-notice" class="invite-notice" hidden>Your partner invited you to an open case.</div>
         <label for="join-name">Your name</label>
         <input type="text" id="join-name" maxlength="24" placeholder="Detective..." />
         <label for="join-code">Case Code</label>
@@ -56,11 +65,13 @@
     <h1 class="title small">CASE OPEN</h1>
     <p class="subtitle">share this code with your partner</p>
     <div class="case-code" id="lobby-code">-----</div>
+    <button class="btn ghost" id="btn-copy-invite">Copy Invite Link</button>
+    <div id="lobby-invite-status" class="copy-status" role="status" aria-live="polite"></div>
     <div class="lobby-players">
       <div class="lobby-slot" id="lobby-slot-A">Detective A — waiting...</div>
       <div class="lobby-slot" id="lobby-slot-B">Detective B — waiting...</div>
     </div>
-    <p class="hint">The game begins automatically once you're both in.</p>
+    <p class="hint">The briefing opens once you're both in. The investigation waits for both detectives to ready up.</p>
     <p class="hint"><a href="#" class="leave-case">Not your case? Leave</a></p>
   </div>
 </section>
@@ -73,7 +84,12 @@
     <p class="subtitle" id="briefing-headline"></p>
     <div class="briefing-body" id="briefing-body"></div>
     <div class="role-callout" id="role-callout"></div>
-    <button class="btn primary" id="btn-begin">Begin Investigation</button>
+    <div class="team-ready-panel" aria-labelledby="briefing-ready-title">
+      <div class="modal-kicker" id="briefing-ready-title">TEAM READINESS</div>
+      <div id="briefing-ready-status" class="team-ready-status" aria-live="polite"></div>
+      <button class="btn primary" id="btn-begin" aria-pressed="false">I'm Ready to Investigate</button>
+      <p class="team-ready-help">The case begins only after both detectives are ready.</p>
+    </div>
     <p class="hint"><a href="#" id="link-how-to-play">Not sure how this works? See how to play</a></p>
   </div>
 </section>
@@ -87,8 +103,8 @@
     </div>
     <div class="game-header-right">
       <span class="role-pill" id="my-role-pill"></span>
-      <span class="partner-status" id="partner-status"></span>
-      <span class="case-progress" id="case-progress"></span>
+      <span class="partner-status" id="partner-status" aria-live="polite"></span>
+      <span class="case-progress" id="case-progress" aria-live="polite"></span>
       <button class="btn ghost small" id="btn-how-to-play" title="How to play">? How to Play</button>
       <button class="btn ghost small" id="btn-open-files">Case Files</button>
       <button class="btn ghost small" id="btn-goto-accuse">Make the Call</button>
@@ -96,29 +112,58 @@
     </div>
   </header>
 
-  <div id="unlock-banner" class="unlock-banner"></div>
+  <div id="unlock-banner" class="unlock-banner" role="status" aria-live="polite"></div>
+  <button id="radio-alert" class="radio-alert" type="button" hidden aria-live="polite"></button>
 
   <main class="game-main">
     <section class="leads-panel">
       <h2 id="leads-title">Leads</h2>
+      <aside class="objective-card" aria-labelledby="objective-title">
+        <h3 id="objective-title">Next moves</h3>
+        <div id="objective-list" class="objective-list"></div>
+      </aside>
       <div id="leads-list" class="leads-list"></div>
     </section>
 
     <section class="board-panel">
       <div class="board-panel-head">
-        <h2>Case Board <span class="hint-inline">shared — drag cards, click two to link them</span></h2>
-        <button class="btn ghost small" id="btn-link-mode">Link Mode: Off</button>
+        <h2>Case Reasoning <span class="hint-inline">shared between both detectives</span></h2>
+        <div class="reasoning-tabs" role="tablist" aria-label="Case reasoning views">
+          <button class="reasoning-tab active" id="tab-evidence" type="button" role="tab" aria-selected="true" aria-controls="evidence-workspace">Evidence</button>
+          <button class="reasoning-tab" id="tab-threads" type="button" role="tab" aria-selected="false" aria-controls="threads-workspace">Case Threads</button>
+        </div>
       </div>
-      <div id="corkboard" class="corkboard">
-        <svg id="link-svg"></svg>
+      <div id="evidence-workspace" class="evidence-workspace" role="tabpanel" aria-labelledby="tab-evidence">
+        <div class="board-link-tools">
+          <button class="btn ghost small" id="btn-link-mode" aria-pressed="false">Test Link: Off</button>
+          <span id="link-status" class="link-status" aria-live="polite">Open a card to review it, or turn on Test Link.</span>
+        </div>
+        <div id="deduction-log" class="deduction-log" aria-live="polite"></div>
+        <div id="corkboard" class="corkboard">
+          <svg id="link-svg"></svg>
+          <div id="board-empty" class="board-empty" aria-live="polite">
+            <strong>No evidence filed yet</strong>
+            <span>Follow a Next Move. Your first filed clue will appear here.</span>
+          </div>
+        </div>
       </div>
+      <section id="threads-workspace" class="threads-workspace" role="tabpanel" aria-labelledby="tab-threads" hidden>
+        <div class="threads-intro">
+          <div>
+            <div class="modal-kicker">STRUCTURED THEORY</div>
+            <p>Place evidence by what it proves. A complete thread must resolve every slot without contradiction.</p>
+          </div>
+          <strong id="threads-progress">0/3 established</strong>
+        </div>
+        <div id="threads-list" class="threads-list"></div>
+      </section>
     </section>
 
     <section class="chat-panel">
       <h2>Radio Line</h2>
-      <div id="chat-log" class="chat-log"></div>
+      <div id="chat-log" class="chat-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Messages from your partner"></div>
       <form id="chat-form" class="chat-form">
-        <input type="text" id="chat-input" maxlength="500" placeholder="Say something to your partner..." autocomplete="off" />
+        <input type="text" id="chat-input" maxlength="500" placeholder="Say something to your partner..." autocomplete="off" aria-label="Radio message" />
         <button class="btn primary small" type="submit">Send</button>
       </form>
     </section>
@@ -126,53 +171,136 @@
 </section>
 
 <!-- SCREEN: Clue modal -->
-<div id="clue-modal" class="modal-overlay">
+<div id="clue-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="clue-modal-title">
   <div class="modal-card">
     <div class="modal-kicker" id="clue-modal-kicker"></div>
     <h3 id="clue-modal-title"></h3>
     <p id="clue-modal-text"></p>
-    <button class="btn primary" id="clue-modal-close">Pin to Board</button>
+    <div class="modal-actions">
+      <button class="btn ghost" id="clue-share">Send to Radio</button>
+      <button class="btn primary" id="clue-modal-close">File Evidence</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: Face-to-face interrogation -->
+<div id="interview-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="interview-name">
+  <div class="modal-card interrogation-card">
+    <button class="modal-x" id="interview-modal-close" aria-label="End interview">&times;</button>
+    <div class="interrogation-layout">
+      <aside class="interrogation-subject">
+        <div id="interview-portrait" class="interview-portrait" role="img"></div>
+        <div class="interview-identity">
+          <div class="modal-kicker" id="interview-role"></div>
+          <h3 id="interview-name"></h3>
+          <div id="interview-demeanor" class="interview-demeanor"></div>
+        </div>
+        <p id="interview-opening" class="interview-opening"></p>
+      </aside>
+      <section class="interrogation-workspace">
+        <div class="interview-section-head">
+          <div>
+            <div class="modal-kicker">INTERVIEW RECORD</div>
+            <h3>Choose your line</h3>
+          </div>
+          <div id="interview-progress" class="interview-progress"></div>
+        </div>
+        <div id="interview-transcript" class="interview-transcript" aria-live="polite"></div>
+        <div class="strategy-panel interview-strategy">
+          <div class="strategy-head">
+            <div>
+              <div class="modal-kicker">YOUR APPROACH</div>
+              <div class="strategy-help">Read the subject and the line. A poor approach costs composure, but never locks the case.</div>
+            </div>
+            <div id="interview-composure" class="composure-meter"></div>
+          </div>
+          <div id="interview-approaches" class="strategy-options" role="group" aria-label="Interview approach">
+            <button type="button" data-approach="rapport">Rapport</button>
+            <button type="button" data-approach="direct">Direct</button>
+            <button type="button" data-approach="pressure">Pressure</button>
+            <button type="button" data-approach="evidence">Present Evidence</button>
+          </div>
+          <div id="interview-strategy-feedback" class="strategy-feedback" aria-live="polite"></div>
+        </div>
+        <div id="interview-questions" class="interview-questions"></div>
+        <div class="interview-records-wrap">
+          <div class="modal-kicker">RECORDS & PERSONAL EFFECTS</div>
+          <div id="interview-records" class="scene-hotspots"></div>
+        </div>
+      </section>
+    </div>
   </div>
 </div>
 
 <!-- SCREEN: Scene modal (a location/person you're currently exploring) -->
-<div id="scene-modal" class="modal-overlay">
-  <div class="modal-card scene-card">
+<div id="scene-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="scene-modal-title">
+  <div class="modal-card fieldwork-card">
     <button class="modal-x" id="scene-modal-close" aria-label="Close">&times;</button>
-    <div class="modal-kicker" id="scene-modal-kicker"></div>
-    <div class="scene-header">
-      <div class="scene-icon" id="scene-modal-icon"></div>
-      <h3 id="scene-modal-title"></h3>
+    <div class="fieldwork-layout">
+      <aside class="fieldwork-scene">
+        <div id="scene-image" class="scene-image" role="img"></div>
+        <div class="scene-identity">
+          <div class="modal-kicker" id="scene-modal-kicker"></div>
+          <h3 id="scene-modal-title"></h3>
+          <div id="scene-modal-method" class="scene-method"></div>
+        </div>
+        <p class="scene-blurb" id="scene-modal-blurb"></p>
+        <p class="scene-opening" id="scene-modal-opening"></p>
+      </aside>
+      <section class="fieldwork-workspace">
+        <div class="fieldwork-section-head">
+          <div>
+            <div class="modal-kicker">SCENE RECONSTRUCTION</div>
+            <h3>Field notes</h3>
+          </div>
+          <div id="scene-progress" class="interview-progress"></div>
+        </div>
+        <div id="scene-notes" class="scene-notes" aria-live="polite"></div>
+        <div class="strategy-panel field-focus-panel">
+          <div class="modal-kicker">RECONSTRUCTION FOCUS</div>
+          <div class="strategy-help">Choose the question you are asking of the scene. The same object can be useless under the wrong theory.</div>
+          <div id="scene-focus-options" class="strategy-options" role="group" aria-label="Scene reconstruction focus"></div>
+          <div id="scene-strategy-feedback" class="strategy-feedback" aria-live="polite"></div>
+        </div>
+        <div class="modal-kicker field-actions-kicker">AVAILABLE APPROACHES</div>
+        <div id="scene-hotspots" class="scene-hotspots"></div>
+      </section>
     </div>
-    <p class="scene-blurb" id="scene-modal-blurb"></p>
-    <div id="scene-hotspots" class="scene-hotspots"></div>
-    <div id="scene-flavor-reveal" class="scene-flavor-reveal"></div>
   </div>
 </div>
 
 <!-- SCREEN: Case files gallery -->
-<div id="files-modal" class="modal-overlay">
+<div id="files-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="files-modal-title">
   <div class="modal-card files-card">
     <button class="modal-x" id="files-modal-close" aria-label="Close">&times;</button>
     <div class="modal-kicker">SHARED CASE FILE</div>
-    <h3>Everything you've found</h3>
+    <h3 id="files-modal-title">Everything you've found</h3>
+    <div class="files-toolbar">
+      <input type="text" id="files-search" placeholder="Search titles, sources, or text..." aria-label="Search case files" />
+      <div class="files-filters" role="group" aria-label="Filter case files by detective">
+        <button class="file-filter active" type="button" data-file-filter="all" aria-pressed="true">All</button>
+        <button class="file-filter" type="button" data-file-filter="A" aria-pressed="false">Street</button>
+        <button class="file-filter" type="button" data-file-filter="B" aria-pressed="false">Desk</button>
+      </div>
+    </div>
     <div id="files-grid" class="files-grid"></div>
   </div>
 </div>
 
 <!-- SCREEN: Document reader (opens a single file full-size) -->
-<div id="doc-modal" class="modal-overlay">
+<div id="doc-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="doc-title">
   <div class="modal-card doc-reader" id="doc-reader-card">
     <button class="modal-x" id="doc-modal-close" aria-label="Close">&times;</button>
     <div class="doc-type-tag" id="doc-type-tag"></div>
     <h3 id="doc-title"></h3>
     <div class="doc-source" id="doc-source"></div>
     <p id="doc-text"></p>
+    <button class="btn ghost doc-share" id="doc-share">Cite on Radio</button>
   </div>
 </div>
 
 <!-- SCREEN: How to Play tutorial -->
-<div id="tutorial-modal" class="modal-overlay">
+<div id="tutorial-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
   <div class="modal-card tutorial-card">
     <button class="modal-x" id="tutorial-close" aria-label="Close">&times;</button>
     <div class="modal-kicker">HOW TO PLAY</div>
@@ -207,6 +335,10 @@
         <h3>Why</h3>
         <div id="accuse-motives" class="accuse-options"></div>
       </div>
+      <div class="accuse-col">
+        <h3>How</h3>
+        <div id="accuse-methods" class="accuse-options"></div>
+      </div>
     </div>
 
     <div class="ready-row">
@@ -222,7 +354,18 @@
   <div class="landing-wrap wide">
     <h1 class="title small" id="ending-title"></h1>
     <div class="briefing-body" id="ending-body"></div>
-    <button class="btn primary" id="btn-restart">Play Again</button>
+    <section class="ending-recap" aria-labelledby="ending-recap-title">
+      <div class="modal-kicker">CASE ANALYSIS</div>
+      <h2 id="ending-recap-title">How the evidence connects</h2>
+      <div id="ending-accusation-summary" class="ending-accusation-summary"></div>
+      <div id="ending-evidence-grid" class="ending-evidence-grid"></div>
+    </section>
+    <div class="team-ready-panel ending-ready-panel" aria-labelledby="restart-ready-title">
+      <div class="modal-kicker" id="restart-ready-title">REOPEN THE CASE</div>
+      <div id="restart-ready-status" class="team-ready-status" aria-live="polite"></div>
+      <button class="btn primary" id="btn-restart" aria-pressed="false">I'm Ready to Play Again</button>
+      <p class="team-ready-help">A new investigation starts only after both detectives are ready.</p>
+    </div>
   </div>
 </section>
 
