@@ -26,10 +26,14 @@ const {
   clampBoardPosition,
   cleanPlayerName,
   deductionForLink,
+  difficultyConfirmed,
+  evidenceMatchesQuestion,
   evaluateThreadDraft,
   fieldModeMatches,
   isValidRole,
   ownsFoundClue,
+  operationAnswerMatches,
+  operationUnlocked,
   pinPositionForFoundCount,
   sanitizeAccusationUpdate,
   sanitizeThreadUpdate,
@@ -85,6 +89,7 @@ function addClueToRoom(room, role, clueId) {
   if (!isValidRole(role) || !caseIndex.clues.has(clueId)) return false;
   if (room.found[role].includes(clueId)) return;
   room.found[role].push(clueId);
+  if (room.activity && room.activity[role]) room.activity[role].evidenceFound += 1;
   room.progressAt = Date.now();
   const totalFound = room.found.A.length + room.found.B.length;
   room.board.pins[clueId] = pinPositionForFoundCount(totalFound);
@@ -93,6 +98,14 @@ function addClueToRoom(room, role, clueId) {
     room.actUnlocked = 2;
   }
   return true;
+}
+
+function freshActivity() {
+  return {
+    A: { evidenceFound: 0, fieldMissteps: 0, interviewsCompleted: 0, evidencePresented: 0, radioMessages: 0, operationAttempts: 0 },
+    B: { evidenceFound: 0, fieldMissteps: 0, interviewsCompleted: 0, evidencePresented: 0, radioMessages: 0, operationAttempts: 0 },
+    team: { threadAttempts: 0, boardAttempts: 0, hintsUsed: 0 }
+  };
 }
 
 function makeRoomCode() {
@@ -120,17 +133,25 @@ function freshRoom(code) {
     board: { pins: {}, links: [] },
     chat: [],
     questionsAsked: [],
+    interviewEvidence: {},
     interviewStates: {},
     confrontationsSolved: [],
     deductionsSolved: [],
     threadDrafts: {},
     threadsSolved: [],
+    operation: { submissions: { A: false, B: false }, solved: false },
     hintState: { threadFailures: 0 },
     progressAt: Date.now(),
     briefingReady: { A: false, B: false },
+    difficultyVotes: { A: null, B: null },
+    difficulty: null,
     callReady: { A: false, B: false },
     restartReady: { A: false, B: false },
     accusationDraft: { suspect: null, location: null, motive: null, method: null, readyA: false, readyB: false },
+    hunches: { A: null, B: null },
+    activity: freshActivity(),
+    startedAt: null,
+    completedAt: null,
     result: null,
     updatedAt: Date.now()
   };
@@ -153,6 +174,7 @@ function publicRoomState(room) {
     board: room.board,
     chat: room.chat,
     questionsAsked: room.questionsAsked,
+    interviewEvidence: room.interviewEvidence,
     interviewStates: room.interviewStates,
     interviewResults: interviewResultsForRoom(caseData, room),
     confrontationsSolved: room.confrontationsSolved,
@@ -161,12 +183,21 @@ function publicRoomState(room) {
     threadDrafts: room.threadDrafts,
     threadsSolved: room.threadsSolved,
     threadDetails: threadDetailsForRoom(caseData, room),
+    operation: {
+      unlocked: operationUnlocked(room),
+      submissions: room.operation ? room.operation.submissions : { A: false, B: false },
+      solved: !!(room.operation && room.operation.solved),
+      result: room.operation && room.operation.solved ? caseData.cooperativeOperation.result : null
+    },
     hintState: room.hintState,
     progressAt: room.progressAt,
     briefingReady: room.briefingReady,
+    difficultyVotes: room.difficultyVotes,
+    difficulty: room.difficulty,
     callReady: room.callReady,
     restartReady: room.restartReady,
     accusationDraft: room.accusationDraft,
+    hunchLocked: { A: !!(room.hunches && room.hunches.A), B: !!(room.hunches && room.hunches.B) },
     result: room.result,
     endingReveal: endingRevealForRoom(caseData, room)
   };
@@ -242,8 +273,22 @@ io.on("connection", (socket) => {
       room.phase = "briefing";
     }
 
-    cb && cb({ ok: true, code, role: takeRole, name: room.players[takeRole].name, resumeToken: roleToken, case: clientCaseData });
+    cb && cb({ ok: true, code, role: takeRole, name: room.players[takeRole].name, resumeToken: roleToken, case: createClientCase(caseData, takeRole) });
     broadcast(room);
+  });
+
+  socket.on("difficulty:vote", (payload = {}, cb) => {
+    if (!allowEvent("difficulty:vote", 12, 10_000)) return cb && cb({ ok: false, error: "Slow down and compare the difficulty descriptions together." });
+    const room = rooms.get(joinedCode);
+    const difficulty = typeof payload.difficulty === "string" ? payload.difficulty : "";
+    if (!room || !joinedRole || room.phase !== "briefing" || !(caseData.difficultyOptions || []).some((option) => option.id === difficulty)) {
+      return cb && cb({ ok: false, error: "That difficulty is not available." });
+    }
+    room.difficultyVotes[joinedRole] = difficulty;
+    room.difficulty = room.difficultyVotes.A && room.difficultyVotes.A === room.difficultyVotes.B ? difficulty : null;
+    room.briefingReady = { A: false, B: false };
+    broadcast(room);
+    cb && cb({ ok: true, difficulty, confirmed: !!room.difficulty });
   });
 
   socket.on("phase:advance", (payload = {}) => {
@@ -260,10 +305,11 @@ io.on("connection", (socket) => {
   socket.on("briefing:ready", (payload = {}) => {
     if (!allowEvent("readiness", 20, 10_000)) return;
     const room = rooms.get(joinedCode);
-    if (!room || !joinedRole || room.phase !== "briefing") return;
+    if (!room || !joinedRole || room.phase !== "briefing" || !difficultyConfirmed(room)) return;
     room.briefingReady[joinedRole] = !!payload.ready;
     if (bothPlayersReady(room, "briefingReady")) {
       room.phase = "investigation";
+      room.startedAt = Date.now();
     }
     broadcast(room);
   });
@@ -300,6 +346,8 @@ io.on("connection", (socket) => {
       return cb && cb({ ok: false, error: "That evidence is not available yet." });
     }
     if (!alreadyFound && joinedRole === "A" && !fieldModeMatches(clueId, sceneMode)) {
+      if (room.activity && room.activity.A) room.activity.A.fieldMissteps += 1;
+      broadcast(room);
       return cb && cb({ ok: false, soft: true, error: "That approach does not answer your current reconstruction focus. Change focus and test the scene again." });
     }
     cb && cb({ ok: true, clue: caseData.clueText[clueId] });
@@ -342,7 +390,7 @@ io.on("connection", (socket) => {
     if (!allowEvent("interview:ask", 30, 60_000)) {
       return cb && cb({ ok: false, error: "Slow down and review the statement before continuing." });
     }
-    const { personId, questionId, approach } = payload || {};
+    const { personId, questionId, approach, evidenceId } = payload || {};
     const room = rooms.get(joinedCode);
     if (!room || room.phase !== "investigation" || !joinedRole) {
       return cb && cb({ ok: false, error: "No active interview." });
@@ -366,9 +414,25 @@ io.on("connection", (socket) => {
           : "The question lands badly. Match your approach to the subject, the line, and any proof you hold."
       });
     }
+    if (approach === "evidence" && (!ownsFoundClue(room, evidenceId) || !evidenceMatchesQuestion(question, evidenceId))) {
+      interviewState.composure = Math.max(1, interviewState.composure - 1);
+      interviewState.missteps += 1;
+      room.interviewStates[personId] = interviewState;
+      broadcast(room);
+      return cb && cb({
+        ok: false,
+        soft: true,
+        error: "They read the file and push it back. It does not prove the claim in this question—choose the record that directly bears on their words."
+      });
+    }
     if (approach === "rapport") interviewState.composure = Math.min(3, interviewState.composure + 1);
     room.interviewStates[personId] = interviewState;
     room.questionsAsked.push(questionId);
+    if (approach === "evidence") {
+      room.interviewEvidence[questionId] = evidenceId;
+      if (room.activity && room.activity.B) room.activity.B.evidencePresented += 1;
+    }
+    if (room.activity && room.activity.B) room.activity.B.interviewsCompleted += 1;
     room.progressAt = Date.now();
     if (question.clueId) addClueToRoom(room, joinedRole, question.clueId);
     if (question.confrontationId && !room.confrontationsSolved.includes(question.confrontationId)) {
@@ -392,6 +456,7 @@ io.on("connection", (socket) => {
     if (!allowEvent("board:link", 20, 10_000)) return cb && cb({ ok: false, error: "Too many link attempts. Review the files first." });
     const { a, b } = payload || {};
     const room = rooms.get(joinedCode);
+    if (room && room.activity && room.activity.team) room.activity.team.boardAttempts += 1;
     if (!room || a === b || !ownsFoundClue(room, a) || !ownsFoundClue(room, b)) {
       return cb && cb({ ok: false, error: "Choose two filed pieces of evidence." });
     }
@@ -425,6 +490,7 @@ io.on("connection", (socket) => {
     const { threadId } = payload || {};
     const room = rooms.get(joinedCode);
     if (!room || !joinedRole || room.phase !== "investigation") return cb && cb({ ok: false, error: "Return to the investigation first." });
+    if (room.activity && room.activity.team) room.activity.team.threadAttempts += 1;
     if (room.threadsSolved.includes(threadId)) return cb && cb({ ok: true, alreadySolved: true });
     const draft = room.threadDrafts[threadId] || {};
     if (!threadSolutionMatches(threadId, draft)) {
@@ -437,7 +503,9 @@ io.on("connection", (socket) => {
         soft: true,
         evaluation,
         error: evaluation
-          ? `${evaluation.matched}/${evaluation.total} roles hold. Reconsider “${evaluation.weakLabel}”; that file proves something else.`
+          ? room.difficulty === "noir"
+            ? "The theory does not hold. At least one file is serving the wrong reasoning role."
+            : `${evaluation.matched}/${evaluation.total} roles hold. Reconsider “${evaluation.weakLabel}”; that file proves something else.`
           : "That theory leaves a contradiction unresolved."
       });
     }
@@ -447,12 +515,66 @@ io.on("connection", (socket) => {
     cb && cb({ ok: true, threadId });
   });
 
+  socket.on("operation:submit", (payload = {}, cb) => {
+    if (!allowEvent("operation:submit", 12, 60_000)) return cb && cb({ ok: false, error: "Pause and compare the two copies before trying again." });
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole || room.phase !== "investigation" || !operationUnlocked(room)) {
+      return cb && cb({ ok: false, error: "The cross-wire trace is not available yet." });
+    }
+    const partnerRole = joinedRole === "A" ? "B" : "A";
+    if (!room.players[partnerRole] || !room.players[partnerRole].connected) {
+      return cb && cb({ ok: false, error: "Your partner must be on the line to run this trace." });
+    }
+    if (room.operation.solved || room.operation.submissions[joinedRole]) {
+      return cb && cb({ ok: true, alreadySolved: true });
+    }
+    if (room.activity && room.activity[joinedRole]) room.activity[joinedRole].operationAttempts += 1;
+    if (!operationAnswerMatches(joinedRole, payload.answer)) {
+      broadcast(room);
+      return cb && cb({
+        ok: false,
+        soft: true,
+        error: joinedRole === "A"
+          ? "Dispatch rejects the route. Ask your partner for the exact order—not the digits."
+          : "That line does not serve the berth on the Street copy. Confirm the stamped berth with your partner."
+      });
+    }
+    room.operation.submissions[joinedRole] = true;
+    if (room.operation.submissions.A && room.operation.submissions.B) {
+      room.operation.solved = true;
+      room.progressAt = Date.now();
+    }
+    broadcast(room);
+    cb && cb({ ok: true, solved: room.operation.solved });
+  });
+
+  socket.on("hunch:lock", (payload = {}, cb) => {
+    const room = rooms.get(joinedCode);
+    const suspectId = typeof payload.suspectId === "string" ? payload.suspectId : "";
+    const totalFound = room ? room.found.A.length + room.found.B.length : 0;
+    if (!room || !joinedRole || room.phase !== "investigation" || totalFound < 5 || !caseData.suspects.includes(suspectId)) {
+      return cb && cb({ ok: false, error: "The private hunch is not available yet." });
+    }
+    if (room.hunches[joinedRole]) return cb && cb({ ok: true, alreadyLocked: true });
+    room.hunches[joinedRole] = suspectId;
+    broadcast(room);
+    cb && cb({ ok: true, suspectId });
+  });
+
+  socket.on("hint:used", () => {
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole || room.phase !== "investigation") return;
+    if (room.activity && room.activity.team) room.activity.team.hintsUsed += 1;
+    broadcast(room);
+  });
+
   socket.on("chat:send", (payload = {}) => {
     if (!allowEvent("chat:send", 15, 10_000)) return;
     const { text } = payload || {};
     const room = rooms.get(joinedCode);
     if (!room || !joinedRole || typeof text !== "string" || !text.trim()) return;
     const player = room.players[joinedRole];
+    if (room.activity && room.activity[joinedRole]) room.activity[joinedRole].radioMessages += 1;
     room.chat.push({ id: crypto.randomUUID(), role: joinedRole, name: player ? player.name : joinedRole, text: text.trim().slice(0, 500), ts: Date.now() });
     if (room.chat.length > 200) room.chat.shift();
     broadcast(room);
@@ -480,6 +602,7 @@ io.on("connection", (socket) => {
 
     if (room.accusationDraft.readyA && room.accusationDraft.readyB) {
       room.result = scoreAccusation({ suspect, location, motive, method });
+      room.completedAt = Date.now();
       room.phase = "ending";
     }
     broadcast(room);
@@ -502,17 +625,25 @@ io.on("connection", (socket) => {
     room.board = { pins: {}, links: [] };
     room.chat = [];
     room.questionsAsked = [];
+    room.interviewEvidence = {};
     room.interviewStates = {};
     room.confrontationsSolved = [];
     room.deductionsSolved = [];
     room.threadDrafts = {};
     room.threadsSolved = [];
+    room.operation = { submissions: { A: false, B: false }, solved: false };
     room.hintState = { threadFailures: 0 };
     room.progressAt = Date.now();
     room.briefingReady = { A: false, B: false };
+    room.difficultyVotes = { A: null, B: null };
+    room.difficulty = null;
     room.callReady = { A: false, B: false };
     room.restartReady = { A: false, B: false };
     room.accusationDraft = { suspect: null, location: null, motive: null, method: null, readyA: false, readyB: false };
+    room.hunches = { A: null, B: null };
+    room.activity = freshActivity();
+    room.startedAt = null;
+    room.completedAt = null;
     room.result = null;
     broadcast(room);
   });

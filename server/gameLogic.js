@@ -36,6 +36,7 @@ function buildCaseIndex(data) {
 
 const caseIndex = buildCaseIndex(caseData);
 const threadIndex = new Map((caseData.investigationThreads || []).map((thread) => [thread.id, thread]));
+const difficultyIds = new Set((caseData.difficultyOptions || []).map((option) => option.id));
 
 function isValidRole(role) {
   return VALID_ROLES.has(role);
@@ -130,17 +131,45 @@ function approachForQuestion(question) {
   return "direct";
 }
 
+function evidenceMatchesQuestion(question, evidenceId) {
+  return !!(
+    question &&
+    typeof evidenceId === "string" &&
+    question.presentClueId &&
+    question.presentClueId === evidenceId
+  );
+}
+
+function difficultyConfirmed(room) {
+  const votes = room && room.difficultyVotes;
+  return !!(votes && difficultyIds.has(votes.A) && votes.A === votes.B && room.difficulty === votes.A);
+}
+
+function operationUnlocked(room) {
+  const operation = caseData.cooperativeOperation;
+  return !!operation && operation.unlockClues.every((clueId) => foundIds(room).includes(clueId));
+}
+
+function operationAnswerMatches(role, answer) {
+  const operation = caseData.cooperativeOperation;
+  if (!operation || !isValidRole(role)) return false;
+  const normalized = typeof answer === "string" ? answer.trim().toLowerCase() : "";
+  return normalized === String(operation.answers[role]).toLowerCase();
+}
+
 function accusationUnlocked(room) {
   const totalFound = room.found.A.length + room.found.B.length;
   const deductionsSolved = Array.isArray(room.deductionsSolved) ? room.deductionsSolved.length : 0;
   const confrontationsSolved = Array.isArray(room.confrontationsSolved) ? room.confrontationsSolved.length : 0;
   const threadsSolved = Array.isArray(room.threadsSolved) ? room.threadsSolved.length : 0;
+  const operationsSolved = room.operation && room.operation.solved ? 1 : 0;
   return (
     room.actUnlocked >= 2 &&
     totalFound >= caseData.accusationUnlockThreshold &&
     deductionsSolved >= caseData.requiredDeductions &&
     threadsSolved >= caseData.requiredThreads &&
-    confrontationsSolved >= caseData.requiredConfrontations
+    confrontationsSolved >= caseData.requiredConfrontations &&
+    operationsSolved >= caseData.requiredOperations
   );
 }
 
@@ -242,11 +271,15 @@ module.exports = {
   clampBoardPosition,
   cleanPlayerName,
   deductionForLink,
+  difficultyConfirmed,
+  evidenceMatchesQuestion,
   evaluateThreadDraft,
   fieldModeMatches,
   foundIds,
   isValidRole,
   ownsFoundClue,
+  operationAnswerMatches,
+  operationUnlocked,
   approachForQuestion,
   pinPositionForFoundCount,
   requirementsMet,

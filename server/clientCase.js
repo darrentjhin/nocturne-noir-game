@@ -1,10 +1,11 @@
-function questionResult(question, personId) {
+function questionResult(question, personId, evidenceId) {
   return {
     id: question.id,
     personId,
     response: question.response,
     after: question.after,
-    breakthrough: !!question.confrontationId
+    breakthrough: !!question.confrontationId,
+    evidenceId: evidenceId || null
   };
 }
 
@@ -18,7 +19,18 @@ function neutralQuestionTopic(tag) {
   }[tag] || tag;
 }
 
-function createClientCase(data) {
+function clientOperation(data, role) {
+  const operation = data.cooperativeOperation;
+  if (!operation) return null;
+  return {
+    id: operation.id,
+    title: operation.title,
+    summary: operation.summary,
+    roleBrief: role && operation.roles[role] ? operation.roles[role] : null
+  };
+}
+
+function createClientCase(data, role) {
   return {
     ...data,
     puzzles: Object.fromEntries(
@@ -41,7 +53,7 @@ function createClientCase(data) {
       interrogation: person.interrogation
         ? {
             ...person.interrogation,
-            questions: person.interrogation.questions.map(({ response, after, tag, ...question }) => ({
+            questions: person.interrogation.questions.map(({ response, after, tag, presentClueId, ...question }) => ({
               ...question,
               topic: neutralQuestionTopic(tag)
             }))
@@ -51,6 +63,8 @@ function createClientCase(data) {
     solution: undefined,
     solutionEvidence: undefined,
     solutionContributions: undefined,
+    cooperativeOperation: clientOperation(data, role),
+    seriesHook: undefined,
     endings: undefined
   };
 }
@@ -90,7 +104,7 @@ function interviewResultsForRoom(data, room) {
   const results = [];
   for (const person of data.people || []) {
     for (const question of (person.interrogation && person.interrogation.questions) || []) {
-      if (asked.has(question.id)) results.push(questionResult(question, person.id));
+      if (asked.has(question.id)) results.push(questionResult(question, person.id, room.interviewEvidence && room.interviewEvidence[question.id]));
     }
   }
   return results;
@@ -102,7 +116,17 @@ function endingRevealForRoom(data, room) {
     ending: data.endings[room.result],
     solution: data.solution,
     solutionEvidence: data.solutionEvidence,
-    solutionContributions: data.solutionContributions
+    solutionContributions: data.solutionContributions,
+    operation: data.cooperativeOperation && room.operation && room.operation.solved
+      ? { title: data.cooperativeOperation.title, result: data.cooperativeOperation.result }
+      : null,
+    debrief: {
+      difficulty: room.difficulty || "detective",
+      durationMs: Math.max(0, Number(room.completedAt || Date.now()) - Number(room.startedAt || room.updatedAt || Date.now())),
+      activity: room.activity || null,
+      hunches: room.hunches || { A: null, B: null }
+    },
+    seriesHook: data.seriesHook
   };
 }
 

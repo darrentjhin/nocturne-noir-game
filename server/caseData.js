@@ -14,6 +14,7 @@ const ACCUSATION_UNLOCK_THRESHOLD = 14; // requires at least one Act 2 discovery
 const REQUIRED_DEDUCTIONS = 2;
 const REQUIRED_THREADS = 3;
 const REQUIRED_CONFRONTATIONS = 2;
+const REQUIRED_OPERATIONS = 1;
 
 module.exports = {
   id: "the-last-reel",
@@ -26,6 +27,13 @@ module.exports = {
   requiredDeductions: REQUIRED_DEDUCTIONS,
   requiredThreads: REQUIRED_THREADS,
   requiredConfrontations: REQUIRED_CONFRONTATIONS,
+  requiredOperations: REQUIRED_OPERATIONS,
+
+  difficultyOptions: [
+    { id: "story", label: "Story", description: "Earlier nudges and more specific theory feedback.", hintDelayMs: 2 * 60 * 1000, failureThreshold: 1 },
+    { id: "detective", label: "Detective", description: "The intended balance of deduction and guidance.", hintDelayMs: 4 * 60 * 1000, failureThreshold: 2 },
+    { id: "noir", label: "Noir", description: "Slower nudges and no weak-section reveal on failed theories.", hintDelayMs: 7 * 60 * 1000, failureThreshold: 3 }
+  ],
 
   briefing: {
     headline: "A filmmaker vanishes the night before her premiere.",
@@ -56,6 +64,36 @@ module.exports = {
       code: "817",
       hint: "A three-digit combination, if anyone's written it down anywhere."
     }
+  },
+
+  cooperativeOperation: {
+    id: "dock-wire-trace",
+    title: "Cross-Wire: Trace the Reel",
+    summary: "One dock record from each detective can identify the courier line and reconstruct its route. Open the wire together and exchange only what your side can see.",
+    unlockClues: ["A7", "B8"],
+    roles: {
+      A: {
+        label: "LOCKER CARBON · STREET COPY",
+        brief: "The carbon inside locker 114 is stamped BERTH SIX. Three route boxes read ENTRY 3 · MIDPOINT 8 · EXIT 1. The order instruction is missing from your half.",
+        prompt: "Enter the three route digits in the order your partner finds.",
+        kind: "code",
+        placeholder: "---",
+        maxLength: 3
+      },
+      B: {
+        label: "DISPATCH INDEX · DESK COPY",
+        brief: "The municipal dispatch index maps BERTH 2 to ECHO, BERTH 6 to MARROW, and BERTH 9 to NORTH. Its routing rule reads EXIT → ENTRY → MIDPOINT.",
+        prompt: "Choose the courier line matching the berth on your partner's copy.",
+        kind: "choice",
+        options: [
+          { id: "echo", label: "ECHO" },
+          { id: "marrow", label: "MARROW" },
+          { id: "north", label: "NORTH" }
+        ]
+      }
+    },
+    answers: { A: "138", B: "marrow" },
+    result: "The traced courier call confirms the reel moved from locker 114 to a North Pier holding route. No passenger or body was logged aboard—the docks scene was a temporary hide, not a departure."
   },
 
   // ---------------- Detective A ("The Street") ----------------
@@ -319,7 +357,8 @@ module.exports = {
             response: "It wasn't paying the studio. Those deposits passed through us to I.C. Post. I froze the last one when I found no staff, no equipment, and only a mailbox behind the vendor.",
             after: "He stops protecting the books and starts protecting himself.",
             requiresQuestions: ["victor-finance"],
-            requiresClues: ["B2"]
+            requiresClues: ["B2"],
+            presentClueId: "B2"
           }
         ]
       },
@@ -388,6 +427,7 @@ module.exports = {
             after: "CONTRADICTION BROKEN — Ivy lied about when she left and who held the reel.",
             requiresQuestions: ["ivy-reel"],
             requiresClues: ["A9", "B3"],
+            presentClueId: "A9",
             confrontationId: "ivy-alibi"
           },
           {
@@ -397,7 +437,8 @@ module.exports = {
             response: "My mother. Mara Voss. Ivy is my father's name. I haven't used hers in years.",
             after: "The alias is no longer anonymous.",
             requiresQuestions: ["ivy-relationship"],
-            requiresClues: ["A7", "B4"]
+            requiresClues: ["A7", "B4"],
+            presentClueId: "B4"
           }
         ]
       },
@@ -525,7 +566,8 @@ module.exports = {
             response: "It paid a post-production vendor. If Miss Chen hid behind a company name, that is a matter for your fraud desk.",
             after: "He abandons ‘never met’ for ‘ordinary vendor’ without acknowledging the shift.",
             requiresQuestions: ["dane-renata"],
-            requiresClues: ["B2", "B4"]
+            requiresClues: ["B2", "B4"],
+            presentClueId: "B2"
           },
           {
             id: "dane-note",
@@ -535,6 +577,7 @@ module.exports = {
             after: "CONTRADICTION BROKEN — Dane admits the payment and places the plan with Ivy.",
             requiresQuestions: ["dane-ivy"],
             requiresClues: ["A4", "B2"],
+            presentClueId: "A4",
             confrontationId: "dane-payments"
           }
         ]
@@ -598,7 +641,7 @@ module.exports = {
     A7: {
       title: "Storage Locker 114",
       docType: "form",
-      text: "Rental paperwork inside is signed \"M. Voss.\" Nobody on this case goes by that name — yet."
+      text: "Rental paperwork inside is signed \"M. Voss.\" Nobody on this case goes by that name — yet. A faint accounting stamp shows a black sun cut by one vertical line."
     },
     A8: {
       title: "Matchbook & Stained Rag",
@@ -618,7 +661,7 @@ module.exports = {
     B2: {
       title: "Bank Statement",
       docType: "ledger",
-      text: "The studio account is badly overdrawn. Its ledger shows repeated deposits from \"C. Dane Consulting LLC\" routed to a vendor called \"I.C. Post Services.\" A final $40,000 transfer landed two days ago. The vendor registration ends at a rented mailbox and the signatory is recorded only as \"I.C.\""
+      text: "The studio account is badly overdrawn. Its ledger shows repeated deposits from \"C. Dane Consulting LLC\" routed to a vendor called \"I.C. Post Services.\" A final $40,000 transfer landed two days ago. The vendor registration ends at a rented mailbox and the signatory is recorded only as \"I.C.\" Every transfer carries a tiny accounting stamp: a black sun cut by one vertical line."
     },
     B3: {
       title: "Interview: Ivy Chen",
@@ -775,6 +818,13 @@ module.exports = {
       clueIds: ["B2", "B3", "B4", "B6"],
       text: "Testimony and records exposed the shell payments, destroyed Ivy's timeline, resolved the Voss alias, and cleared Sal's debt motive."
     }
+  },
+
+  seriesHook: {
+    label: "NOCTURNE · FILE 02",
+    title: "The Black-Sun Ledger",
+    text: "Three nights after the Kessler case closes, the same two detectives receive an envelope with no return address. Inside: a scorched ledger page bearing the black-sun stamp from Dane's transfers and locker 114. Beneath it, one typed line—‘Kessler was only page one.’",
+    status: "The Street and The Desk will return."
   },
 
   endings: {

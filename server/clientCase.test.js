@@ -16,8 +16,14 @@ test("the public case payload does not reveal answers or valid evidence pairs", 
   assert.equal(clientCase.solution, undefined);
   assert.equal(clientCase.solutionEvidence, undefined);
   assert.equal(clientCase.solutionContributions, undefined);
+  assert.equal(clientCase.seriesHook, undefined);
   assert.equal(clientCase.endings, undefined);
   assert.equal(clientCase.puzzles.supplyCloset.code, undefined);
+  assert.equal(clientCase.cooperativeOperation.roleBrief, null);
+  assert.equal(clientCase.cooperativeOperation.answers, undefined);
+  assert.equal(clientCase.cooperativeOperation.result, undefined);
+  assert.ok(createClientCase(caseData, "A").cooperativeOperation.roleBrief.brief.includes("BERTH SIX"));
+  assert.ok(createClientCase(caseData, "B").cooperativeOperation.roleBrief.brief.includes("dispatch index"));
   assert.ok(clientCase.deductions.every((deduction) => deduction.clueIds === undefined));
   assert.ok(clientCase.deductions.every((deduction) => deduction.title === undefined && deduction.text === undefined));
   assert.ok(Object.values(clientCase.clueText).every((clue) => clue.text === undefined));
@@ -30,6 +36,7 @@ test("the public case payload does not reveal answers or valid evidence pairs", 
       assert.equal(question.response, undefined);
       assert.equal(question.after, undefined);
       assert.equal(question.tag, undefined);
+      assert.equal(question.presentClueId, undefined);
       assert.ok(question.topic);
     }
   }
@@ -54,17 +61,30 @@ test("only earned evidence, deductions, and threads return their full details", 
 });
 
 test("only asked interviews are returned to players", () => {
-  const room = { questionsAsked: ["ivy-timeline", "sal-renata"] };
+  const room = { questionsAsked: ["ivy-timeline", "sal-renata"], interviewEvidence: { "ivy-timeline": "A9" } };
   const results = interviewResultsForRoom(caseData, room);
   assert.deepEqual(results.map((result) => result.id), room.questionsAsked);
   assert.ok(results.every((result) => result.response && result.after));
   assert.equal(results.some((result) => result.id === "ivy-courier"), false);
+  assert.equal(results[0].evidenceId, "A9");
 });
 
 test("the solution reveal appears only after the ending is reached", () => {
   assert.equal(endingRevealForRoom(caseData, { phase: "accusation", result: null }), null);
-  const reveal = endingRevealForRoom(caseData, { phase: "ending", result: "correct" });
+  const reveal = endingRevealForRoom(caseData, {
+    phase: "ending",
+    result: "correct",
+    operation: { solved: true },
+    difficulty: "detective",
+    startedAt: 1000,
+    completedAt: 61000,
+    hunches: { A: "victor", B: "ivy" },
+    activity: { A: {}, B: {}, team: {} }
+  });
   assert.equal(reveal.solution.suspect, "ivy");
   assert.equal(reveal.ending.title, caseData.endings.correct.title);
   assert.deepEqual(reveal.solutionContributions, caseData.solutionContributions);
+  assert.equal(reveal.operation.title, caseData.cooperativeOperation.title);
+  assert.equal(reveal.debrief.durationMs, 60000);
+  assert.equal(reveal.seriesHook.title, "The Black-Sun Ledger");
 });

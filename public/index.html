@@ -89,6 +89,11 @@
     <div class="briefing-body" id="briefing-body"></div>
     <div class="role-callout" id="role-callout"></div>
     <div class="team-ready-panel" aria-labelledby="briefing-ready-title">
+      <fieldset class="difficulty-panel">
+        <legend>CHOOSE DIFFICULTY TOGETHER</legend>
+        <div id="difficulty-options" class="difficulty-options"></div>
+        <div id="difficulty-status" class="difficulty-status" aria-live="polite"></div>
+      </fieldset>
       <div class="modal-kicker" id="briefing-ready-title">TEAM READINESS</div>
       <div id="briefing-ready-status" class="team-ready-status" aria-live="polite"></div>
       <button class="btn primary" id="btn-begin" aria-pressed="false">I'm Ready to Investigate</button>
@@ -139,6 +144,7 @@
         <div class="reasoning-tabs" role="tablist" aria-label="Case reasoning views">
           <button class="reasoning-tab active" id="tab-evidence" type="button" role="tab" aria-selected="true" aria-controls="evidence-workspace">Evidence</button>
           <button class="reasoning-tab" id="tab-threads" type="button" role="tab" aria-selected="false" aria-controls="threads-workspace">Case Threads</button>
+          <button class="reasoning-tab" id="tab-operation" type="button" role="tab" aria-selected="false" aria-controls="operation-workspace">Cross-Wire</button>
         </div>
       </div>
       <div id="evidence-workspace" class="evidence-workspace" role="tabpanel" aria-labelledby="tab-evidence">
@@ -165,11 +171,35 @@
         </div>
         <div id="threads-list" class="threads-list"></div>
       </section>
+      <section id="operation-workspace" class="operation-workspace" role="tabpanel" aria-labelledby="tab-operation" hidden>
+        <div id="operation-locked" class="operation-locked"></div>
+        <div id="operation-active" hidden>
+          <div class="modal-kicker">LIVE CROSS-ROLE PROCEDURE</div>
+          <h3 id="operation-title"></h3>
+          <p id="operation-summary"></p>
+          <div class="operation-status" id="operation-status" aria-live="polite"></div>
+          <article class="operation-copy">
+            <span id="operation-copy-label"></span>
+            <p id="operation-copy-brief"></p>
+          </article>
+          <label id="operation-prompt" for="operation-answer"></label>
+          <div id="operation-input-wrap" class="operation-input-wrap"></div>
+          <button type="button" class="btn primary small" id="btn-operation-submit">Lock My Half</button>
+          <div id="operation-feedback" class="operation-feedback" role="status" aria-live="polite"></div>
+          <div id="operation-result" class="operation-result" hidden></div>
+        </div>
+      </section>
     </section>
 
     <section class="chat-panel" aria-label="Radio Line communication">
       <div class="chat-panel-head"><h2>Radio Line</h2><span>Live with partner</span></div>
       <p class="chat-intro">Share exact names, times, evidence IDs, and codes.</p>
+      <div id="hunch-panel" class="hunch-panel" hidden>
+        <div class="hunch-copy"><strong>Private hunch</strong><span>Sealed until the debrief</span></div>
+        <select id="hunch-suspect" aria-label="Choose your private suspect hunch"></select>
+        <button type="button" id="btn-lock-hunch">Lock</button>
+        <small id="hunch-status"></small>
+      </div>
       <div class="radio-quick-actions" aria-label="Quick requests">
         <button type="button" data-radio-request="Need corroboration for my current lead.">Need corroboration</button>
         <button type="button" data-radio-request="Can you verify the exact time in your files?">Check a time</button>
@@ -233,6 +263,10 @@
             <button type="button" data-approach="direct">Direct</button>
             <button type="button" data-approach="pressure">Pressure</button>
             <button type="button" data-approach="evidence">Present Evidence</button>
+          </div>
+          <div id="interview-evidence-presenter" class="interview-evidence-presenter" hidden>
+            <label for="interview-evidence-select">Evidence to place on the table</label>
+            <select id="interview-evidence-select"></select>
           </div>
           <div id="interview-strategy-feedback" class="strategy-feedback" aria-live="polite"></div>
         </div>
@@ -390,8 +424,17 @@
       <div id="ending-reconstruction" class="ending-reconstruction"></div>
       <div class="modal-kicker ending-section-kicker">WHAT EACH DETECTIVE PROVED</div>
       <div id="ending-contributions" class="ending-contributions"></div>
+      <div class="modal-kicker ending-section-kicker">TEAM DEBRIEF</div>
+      <div id="ending-debrief" class="ending-debrief"></div>
+      <div id="ending-operation" class="ending-operation" hidden></div>
       <div class="modal-kicker ending-section-kicker">ALTERNATIVES ELIMINATED</div>
       <div id="ending-evidence-grid" class="ending-evidence-grid"></div>
+    </section>
+    <section id="series-hook" class="series-hook" hidden>
+      <div id="series-hook-label" class="modal-kicker"></div>
+      <h2 id="series-hook-title"></h2>
+      <p id="series-hook-text"></p>
+      <strong id="series-hook-status"></strong>
     </section>
     <div class="team-ready-panel ending-ready-panel" aria-labelledby="restart-ready-title">
       <div class="modal-kicker" id="restart-ready-title">REOPEN THE CASE</div>

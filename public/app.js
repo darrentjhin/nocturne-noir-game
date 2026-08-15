@@ -35,11 +35,16 @@
   const threadFeedback = {};
   const interviewApproaches = {};
   const interviewFeedback = {};
+  const interviewEvidenceSelections = {};
   const fieldFocus = {};
   const fieldFeedback = {};
   const openedLeadIds = new Set();
   let fieldMissteps = 0;
   let hintExpanded = false;
+  let hintUsageReported = false;
+  let operationDraft = "";
+  let operationFeedback = "";
+  let hunchDraft = "";
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -150,9 +155,14 @@
       body: "Case Threads ask you to assign several filed clues to distinct roles in the timeline, money trail, and reel route. The Evidence Board has a narrower job: connect proof that clears the two strongest alternative suspects. Unsupported theories are rejected without penalty."
     },
     {
+      icon: "📡",
+      title: "Run the Cross-Wire together",
+      body: "Late in the case, each detective receives a different copy of a dock-route record. Stay on the Radio Line: one of you must identify the courier line and the other must reconstruct the route digits. Both halves must be correct before the final call."
+    },
+    {
       icon: "☎️",
       title: "Advance only together",
-      body: "Both detectives must ready the investigation. Later, once you have enough evidence, three Case Threads, two suspect eliminations, and two broken contradictions, each of you must agree to open the final call and ready the same who, where, why, and how theory."
+      body: "First agree on a difficulty, then both ready the investigation. Later, once you have enough evidence, three Case Threads, one Cross-Wire, two suspect eliminations, and two broken contradictions, each of you must agree to open the final call and ready the same who, where, why, and how theory."
     }
   ];
   let tutorialStep = 0;
@@ -498,6 +508,10 @@
         openedLeadIds.clear();
         fieldMissteps = 0;
         hintExpanded = false;
+        hintUsageReported = false;
+        operationDraft = "";
+        operationFeedback = "";
+        hunchDraft = "";
         lastFoundTotal = 0;
         let seen = null;
         try {
@@ -590,13 +604,34 @@
         <div class="role-tag">${role.tagline}</div>
       </div>
     `;
+    const difficultyOptions = $("#difficulty-options");
+    difficultyOptions.innerHTML = "";
+    (caseData.difficultyOptions || []).forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      const mine = state.difficultyVotes && state.difficultyVotes[myRole] === option.id;
+      const confirmed = state.difficulty === option.id;
+      button.className = "difficulty-option" + (mine ? " selected" : "") + (confirmed ? " confirmed" : "");
+      button.setAttribute("aria-pressed", mine ? "true" : "false");
+      button.innerHTML = `<strong>${option.label}${option.id === "detective" ? " · Recommended" : ""}</strong><span>${option.description}</span>`;
+      button.addEventListener("click", () => socket.emit("difficulty:vote", { difficulty: option.id }));
+      difficultyOptions.appendChild(button);
+    });
+    const votes = state.difficultyVotes || { A: null, B: null };
+    const labelFor = (id) => ((caseData.difficultyOptions || []).find((option) => option.id === id) || {}).label || "Not chosen";
+    $("#difficulty-status").textContent = state.difficulty
+      ? `${labelFor(state.difficulty)} confirmed by both detectives.`
+      : `Street: ${labelFor(votes.A)} · Desk: ${labelFor(votes.B)}${votes.A && votes.B ? " · Choose the same mode to continue." : ""}`;
     renderTeamReadiness("#briefing-ready-status", state, "briefingReady");
     const myReady = !!(state.briefingReady && state.briefingReady[myRole]);
     const partnerRole = myRole === "A" ? "B" : "A";
     const partnerReady = !!(state.briefingReady && state.briefingReady[partnerRole]);
     const begin = $("#btn-begin");
+    begin.disabled = !state.difficulty;
     begin.setAttribute("aria-pressed", myReady ? "true" : "false");
-    begin.textContent = myReady ? (partnerReady ? "Starting Together…" : "Ready — Waiting for Partner") : (partnerReady ? "Join Partner — I'm Ready" : "I'm Ready to Investigate");
+    begin.textContent = !state.difficulty
+      ? "Agree on Difficulty First"
+      : myReady ? (partnerReady ? "Starting Together…" : "Ready — Waiting for Partner") : (partnerReady ? "Join Partner — I'm Ready" : "I'm Ready to Investigate");
   }
 
   $("#btn-begin").addEventListener("click", () => {
@@ -651,12 +686,14 @@
     const deductionsSolved = (state.deductionsSolved || []).length;
     const confrontationsSolved = (state.confrontationsSolved || []).length;
     const threadsSolved = (state.threadsSolved || []).length;
+    const operationsSolved = state.operation && state.operation.solved ? 1 : 0;
     return (
       state.actUnlocked >= 2 &&
       foundTotal >= caseData.accusationUnlockThreshold &&
       deductionsSolved >= caseData.requiredDeductions &&
       threadsSolved >= caseData.requiredThreads &&
-      confrontationsSolved >= caseData.requiredConfrontations
+      confrontationsSolved >= caseData.requiredConfrontations &&
+      operationsSolved >= caseData.requiredOperations
     );
   }
 
@@ -665,6 +702,7 @@
     return [
       { label: "Filed evidence", current: foundTotal, required: caseData.accusationUnlockThreshold, action: "Follow an Active lead or ask your partner what is still waiting." },
       { label: "Case Threads", current: (state.threadsSolved || []).length, required: caseData.requiredThreads, action: "Open Case Threads and assign evidence by what it proves." },
+      { label: "Cross-Wire trace", current: state.operation && state.operation.solved ? 1 : 0, required: caseData.requiredOperations, action: "Open Cross-Wire and exchange the private details shown on each detective's copy." },
       { label: "Suspect eliminations", current: (state.deductionsSolved || []).length, required: caseData.requiredDeductions, action: "Pair evidence that rules out your strongest alternative suspects." },
       { label: "Broken contradictions", current: (state.confrontationsSolved || []).length, required: caseData.requiredConfrontations, action: "Return to an interview with testimony and the evidence that disproves it." }
     ];
@@ -680,8 +718,9 @@
   }
 
   function renderAdaptiveHint(state) {
-    const stalled = Date.now() - Number(state.progressAt || Date.now()) >= 4 * 60 * 1000;
-    const repeatedFailures = Number(state.hintState && state.hintState.threadFailures) >= 2 || totalInterviewMissteps(state) >= 2 || fieldMissteps >= 2;
+    const difficulty = (caseData.difficultyOptions || []).find((option) => option.id === state.difficulty) || { hintDelayMs: 4 * 60 * 1000, failureThreshold: 2 };
+    const stalled = Date.now() - Number(state.progressAt || Date.now()) >= difficulty.hintDelayMs;
+    const repeatedFailures = Number(state.hintState && state.hintState.threadFailures) >= difficulty.failureThreshold || totalInterviewMissteps(state) >= difficulty.failureThreshold || fieldMissteps >= difficulty.failureThreshold;
     const container = $("#adaptive-hint");
     container.hidden = !(stalled || repeatedFailures);
     if (container.hidden) return;
@@ -695,6 +734,10 @@
 
   $("#btn-adaptive-hint").addEventListener("click", () => {
     hintExpanded = !hintExpanded;
+    if (hintExpanded && !hintUsageReported) {
+      hintUsageReported = true;
+      socket.emit("hint:used");
+    }
     if (latestState) renderAdaptiveHint(latestState);
   });
 
@@ -725,13 +768,15 @@
     const confrontationCount = (state.confrontationsSolved || []).length;
     const deductionCount = (state.deductionsSolved || []).length;
     const threadCount = (state.threadsSolved || []).length;
-    $("#case-progress").textContent = `${foundTotal}/${totalClues} evidence · ${threadCount}/${caseData.requiredThreads} theories · ${deductionCount}/${caseData.requiredDeductions} eliminations · ${confrontationCount}/${caseData.requiredConfrontations} contradictions`;
+    const operationCount = state.operation && state.operation.solved ? 1 : 0;
+    $("#case-progress").textContent = `${foundTotal}/${totalClues} files · ${threadCount}/${caseData.requiredThreads} threads · ${operationCount}/${caseData.requiredOperations} wire · ${deductionCount}/${caseData.requiredDeductions} clears · ${confrontationCount}/${caseData.requiredConfrontations} breaks`;
 
     const callButton = $("#btn-goto-accuse");
     const callUnlocked = canMakeCall(state);
     const cluesRemaining = Math.max(0, caseData.accusationUnlockThreshold - foundTotal);
     const deductionsRemaining = Math.max(0, caseData.requiredDeductions - (state.deductionsSolved || []).length);
     const threadsRemaining = Math.max(0, caseData.requiredThreads - (state.threadsSolved || []).length);
+    const operationsRemaining = Math.max(0, caseData.requiredOperations - operationCount);
     const confrontationsRemaining = Math.max(0, caseData.requiredConfrontations - confrontationCount);
     callButton.disabled = false;
     callButton.dataset.locked = callUnlocked ? "false" : "true";
@@ -749,6 +794,9 @@
     } else if (threadsRemaining > 0) {
       callButton.textContent = `Build Theory (${threadCount}/${caseData.requiredThreads})`;
       callButton.title = `Establish ${threadsRemaining} more case thread${threadsRemaining === 1 ? "" : "s"}`;
+    } else if (operationsRemaining > 0) {
+      callButton.textContent = state.operation && state.operation.unlocked ? "Run Cross-Wire" : "Trace Locked";
+      callButton.title = state.operation && state.operation.unlocked ? "Both detectives must complete their half of the Cross-Wire" : "Find the two dock-route records to open the Cross-Wire";
     } else if (deductionsRemaining > 0) {
       callButton.textContent = "Link Evidence";
       callButton.title = `Eliminate ${deductionsRemaining} remaining alternative suspect${deductionsRemaining === 1 ? "" : "s"} on the Evidence Board`;
@@ -833,7 +881,9 @@
     renderDeductions(state);
     renderCorkboard(state);
     renderThreads(state);
+    renderOperation(state);
     renderChat(state);
+    renderHunch(state);
     renderAdaptiveHint(state);
   }
 
@@ -883,6 +933,9 @@
     if (found.length >= 3 && unsolvedThreads.length) {
       objectives.unshift({ text: `Case Threads: assemble “${unsolvedThreads[0].title}” from filed evidence`, waiting: false });
     }
+    if (state.operation && state.operation.unlocked && !state.operation.solved) {
+      objectives.unshift({ text: "Cross-Wire: compare your private dock copy with your partner and lock both halves", waiting: false });
+    }
     if (!objectives.some((objective) => !objective.waiting) && canMakeCall(state)) {
       objectives.unshift({ text: "Review your four-part theory with your partner and make the call", waiting: false });
     } else if (!objectives.length) {
@@ -919,6 +972,10 @@
     if (state.actUnlocked > lastActUnlocked) {
       showUnlockBanner("🗞️ New leads have opened up across the city.");
     }
+    if (state.operation && state.operation.unlocked && !state.operation.solved && !contextualTipsShown.has("cross-wire")) {
+      contextualTipsShown.add("cross-wire");
+      showUnlockBanner("📡 Cross-Wire opened. Each detective now holds a different half of the dock-route trace.");
+    }
     const confrontationCount = (state.confrontationsSolved || []).length;
     if (confrontationCount > lastConfrontationCount) {
       showUnlockBanner("⚖️ Contradiction broken. Their story no longer holds.");
@@ -951,18 +1008,24 @@
   }
 
   function setReasoningView(view) {
-    reasoningView = view === "threads" ? "threads" : "evidence";
+    reasoningView = view === "threads" || view === "operation" ? view : "evidence";
     const evidenceActive = reasoningView === "evidence";
+    const threadsActive = reasoningView === "threads";
+    const operationActive = reasoningView === "operation";
     $("#evidence-workspace").hidden = !evidenceActive;
-    $("#threads-workspace").hidden = evidenceActive;
+    $("#threads-workspace").hidden = !threadsActive;
+    $("#operation-workspace").hidden = !operationActive;
     $("#tab-evidence").classList.toggle("active", evidenceActive);
     $("#tab-evidence").setAttribute("aria-selected", evidenceActive ? "true" : "false");
-    $("#tab-threads").classList.toggle("active", !evidenceActive);
-    $("#tab-threads").setAttribute("aria-selected", evidenceActive ? "false" : "true");
+    $("#tab-threads").classList.toggle("active", threadsActive);
+    $("#tab-threads").setAttribute("aria-selected", threadsActive ? "true" : "false");
+    $("#tab-operation").classList.toggle("active", operationActive);
+    $("#tab-operation").setAttribute("aria-selected", operationActive ? "true" : "false");
   }
 
   $("#tab-evidence").addEventListener("click", () => setReasoningView("evidence"));
   $("#tab-threads").addEventListener("click", () => setReasoningView("threads"));
+  $("#tab-operation").addEventListener("click", () => setReasoningView("operation"));
 
   function renderThreads(state) {
     const solvedIds = state.threadsSolved || [];
@@ -1064,6 +1127,96 @@
     setReasoningView(reasoningView);
   }
 
+  function renderOperation(state) {
+    const operation = caseData.cooperativeOperation;
+    if (!operation) return;
+    const operationState = state.operation || { unlocked: false, submissions: { A: false, B: false }, solved: false };
+    $("#tab-operation").textContent = operationState.solved ? "Cross-Wire ✓" : operationState.unlocked ? "Cross-Wire · Open" : "Cross-Wire · Locked";
+    const locked = $("#operation-locked");
+    const active = $("#operation-active");
+    locked.hidden = operationState.unlocked;
+    active.hidden = !operationState.unlocked;
+    if (!operationState.unlocked) {
+      locked.textContent = "The trace needs two dock-route records—one filed by The Street and one obtained by The Desk. Keep investigating until both copies surface.";
+      setReasoningView(reasoningView);
+      return;
+    }
+
+    const brief = operation.roleBrief;
+    $("#operation-title").textContent = operation.title;
+    $("#operation-summary").textContent = operation.summary;
+    $("#operation-copy-label").textContent = brief.label;
+    $("#operation-copy-brief").textContent = brief.brief;
+    $("#operation-prompt").textContent = brief.prompt;
+    const statuses = $("#operation-status");
+    statuses.innerHTML = "";
+    ["A", "B"].forEach((roleId) => {
+      const chip = document.createElement("span");
+      const submitted = !!operationState.submissions[roleId];
+      chip.className = submitted ? "ready" : "";
+      chip.textContent = `${caseData.roles[roleId].name}: ${submitted ? "half locked" : roleId === myRole ? "working" : "waiting"}`;
+      statuses.appendChild(chip);
+    });
+
+    const wrap = $("#operation-input-wrap");
+    wrap.innerHTML = "";
+    let control;
+    if (brief.kind === "choice") {
+      control = document.createElement("select");
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "Choose courier line…";
+      control.appendChild(empty);
+      (brief.options || []).forEach((item) => {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.label;
+        control.appendChild(option);
+      });
+    } else {
+      control = document.createElement("input");
+      control.type = "text";
+      control.inputMode = "numeric";
+      control.maxLength = brief.maxLength || 8;
+      control.placeholder = brief.placeholder || "";
+    }
+    control.id = "operation-answer";
+    control.value = operationDraft;
+    control.disabled = !!operationState.submissions[myRole] || operationState.solved;
+    control.addEventListener("input", () => {
+      operationDraft = control.value;
+      operationFeedback = "";
+      $("#operation-feedback").textContent = "";
+    });
+    control.addEventListener("change", () => { operationDraft = control.value; });
+    wrap.appendChild(control);
+
+    const submit = $("#btn-operation-submit");
+    submit.hidden = operationState.solved;
+    submit.disabled = !!operationState.submissions[myRole];
+    submit.textContent = operationState.submissions[myRole] ? "My Half Is Locked" : "Lock My Half";
+    submit.onclick = () => {
+      if (!operationDraft) {
+        operationFeedback = "Choose an answer from your copy first.";
+        $("#operation-feedback").textContent = operationFeedback;
+        return;
+      }
+      submit.disabled = true;
+      socket.emit("operation:submit", { answer: operationDraft }, (response) => {
+        if (!response || !response.ok) {
+          operationFeedback = (response && response.error) || "The trace could not be tested.";
+          submit.disabled = false;
+          $("#operation-feedback").textContent = operationFeedback;
+        }
+      });
+    };
+    $("#operation-feedback").textContent = operationFeedback;
+    const result = $("#operation-result");
+    result.hidden = !operationState.solved;
+    result.textContent = operationState.result || "";
+    setReasoningView(reasoningView);
+  }
+
   // ---------- Scene modal (examine a location/person) ----------
   function sourceRequirementsMet(source, state) {
     const found = [...state.found.A, ...state.found.B];
@@ -1161,6 +1314,23 @@
         renderInterview(person, latestState);
       };
     });
+    const evidencePresenter = $("#interview-evidence-presenter");
+    const evidenceSelect = $("#interview-evidence-select");
+    const presentingEvidence = interviewApproaches[person.id] === "evidence";
+    evidencePresenter.hidden = !presentingEvidence;
+    evidenceSelect.innerHTML = '<option value="">Choose a filed document…</option>';
+    [...state.found.A, ...state.found.B].forEach((clueId) => {
+      const clue = clueRecord(clueId);
+      const option = document.createElement("option");
+      option.value = clueId;
+      option.textContent = `${clueId} — ${clue.title}`;
+      evidenceSelect.appendChild(option);
+    });
+    evidenceSelect.value = interviewEvidenceSelections[person.id] || "";
+    evidenceSelect.onchange = () => {
+      interviewEvidenceSelections[person.id] = evidenceSelect.value;
+      interviewFeedback[person.id] = "";
+    };
 
     const transcript = $("#interview-transcript");
     transcript.innerHTML = "";
@@ -1184,7 +1354,14 @@
         const tell = document.createElement("div");
         tell.className = "transcript-tell";
         tell.textContent = result.after;
-        exchange.append(prompt, answer, tell);
+        exchange.append(prompt, answer);
+        if (result.evidenceId) {
+          const cited = document.createElement("div");
+          cited.className = "transcript-evidence";
+          cited.textContent = `FILE PRESENTED — ${result.evidenceId}: ${clueRecord(result.evidenceId).title}`;
+          exchange.appendChild(cited);
+        }
+        exchange.appendChild(tell);
         transcript.appendChild(exchange);
       });
     }
@@ -1218,8 +1395,15 @@
         button.appendChild(lock);
       } else {
         button.addEventListener("click", () => {
+          const approach = interviewApproaches[person.id];
+          const evidenceId = interviewEvidenceSelections[person.id] || null;
+          if (approach === "evidence" && !evidenceId) {
+            interviewFeedback[person.id] = "Choose the exact filed document you want to place on the table.";
+            renderInterview(person, latestState);
+            return;
+          }
           button.disabled = true;
-          socket.emit("interview:ask", { personId: person.id, questionId: question.id, approach: interviewApproaches[person.id] }, (res) => {
+          socket.emit("interview:ask", { personId: person.id, questionId: question.id, approach, evidenceId }, (res) => {
             if (!res || !res.ok) {
               button.disabled = false;
               if (res && res.soft) {
@@ -1888,7 +2072,44 @@
     }, 120);
   });
 
-  // ---------- Chat ----------
+  // ---------- Private hunch + chat ----------
+  function renderHunch(state) {
+    const panel = $("#hunch-panel");
+    const foundTotal = state.found.A.length + state.found.B.length;
+    panel.hidden = foundTotal < 5;
+    if (panel.hidden) return;
+    const select = $("#hunch-suspect");
+    const myLocked = !!(state.hunchLocked && state.hunchLocked[myRole]);
+    const partnerLocked = !!(state.hunchLocked && state.hunchLocked[myRole === "A" ? "B" : "A"]);
+    select.innerHTML = '<option value="">Who do you suspect?</option>';
+    caseData.suspects.forEach((suspectId) => {
+      const person = caseData.people.find((item) => item.id === suspectId);
+      const option = document.createElement("option");
+      option.value = suspectId;
+      option.textContent = person.name;
+      select.appendChild(option);
+    });
+    select.value = hunchDraft;
+    select.disabled = myLocked;
+    select.onchange = () => { hunchDraft = select.value; };
+    const button = $("#btn-lock-hunch");
+    button.disabled = myLocked;
+    button.textContent = myLocked ? "Sealed" : "Lock";
+    $("#hunch-status").textContent = myLocked
+      ? `Your hunch is sealed. Partner: ${partnerLocked ? "sealed" : "not yet"}.`
+      : "Your partner cannot see this until the case ends.";
+  }
+
+  $("#btn-lock-hunch").addEventListener("click", () => {
+    if (!hunchDraft) {
+      $("#hunch-status").textContent = "Choose a suspect before sealing your hunch.";
+      return;
+    }
+    socket.emit("hunch:lock", { suspectId: hunchDraft }, (response) => {
+      if (!response || !response.ok) $("#hunch-status").textContent = (response && response.error) || "The hunch could not be sealed.";
+    });
+  });
+
   function notifyPartnerMessages(state) {
     const messageId = (message) => message.id || `${message.ts}:${message.role}:${message.name}:${message.text}`;
     if (!chatInitialized) {
@@ -2138,6 +2359,31 @@
       contributions.appendChild(card);
     });
 
+    const debrief = reveal.debrief || {};
+    const activity = debrief.activity || {
+      A: { evidenceFound: state.found.A.length, fieldMissteps: 0, radioMessages: 0, operationAttempts: 0 },
+      B: { evidenceFound: state.found.B.length, interviewsCompleted: (state.questionsAsked || []).length, evidencePresented: 0, radioMessages: 0, operationAttempts: 0 },
+      team: { threadAttempts: 0, boardAttempts: 0, hintsUsed: 0 }
+    };
+    const difficulty = (caseData.difficultyOptions || []).find((option) => option.id === debrief.difficulty);
+    const minutes = Math.floor(Number(debrief.durationMs || 0) / 60000);
+    const seconds = Math.floor((Number(debrief.durationMs || 0) % 60000) / 1000);
+    const hunchName = (roleId) => {
+      const suspectId = debrief.hunches && debrief.hunches[roleId];
+      const person = caseData.people.find((item) => item.id === suspectId);
+      return person ? person.name : "No hunch sealed";
+    };
+    const debriefContainer = $("#ending-debrief");
+    debriefContainer.innerHTML = `
+      <article class="debrief-card"><span>Team</span><strong>${minutes}:${String(seconds).padStart(2, "0")}</strong><p>${difficulty ? difficulty.label : "Detective"} mode · ${activity.team.threadAttempts} theory tests · ${activity.team.boardAttempts} board tests · ${activity.team.hintsUsed} nudges opened</p></article>
+      <article class="debrief-card"><span>${caseData.roles.A.name}</span><strong>${hunchName("A")}</strong><p>Opening hunch · ${activity.A.evidenceFound} files · ${activity.A.fieldMissteps} focus misreads · ${activity.A.radioMessages} radio messages</p></article>
+      <article class="debrief-card"><span>${caseData.roles.B.name}</span><strong>${hunchName("B")}</strong><p>Opening hunch · ${activity.B.interviewsCompleted} interview lines · ${activity.B.evidencePresented} files presented · ${activity.B.radioMessages} radio messages</p></article>
+    `;
+
+    const operation = $("#ending-operation");
+    operation.hidden = !reveal.operation;
+    operation.innerHTML = reveal.operation ? `<strong>${reveal.operation.title}</strong><br>${reveal.operation.result}` : "";
+
     const grid = $("#ending-evidence-grid");
     grid.innerHTML = "";
     reveal.solutionEvidence.slice(4).forEach((item) => {
@@ -2153,6 +2399,16 @@
       card.append(title, explanation, clues);
       grid.appendChild(card);
     });
+
+    const hook = reveal.seriesHook;
+    const hookSection = $("#series-hook");
+    hookSection.hidden = !hook;
+    if (hook) {
+      $("#series-hook-label").textContent = hook.label;
+      $("#series-hook-title").textContent = hook.title;
+      $("#series-hook-text").textContent = hook.text;
+      $("#series-hook-status").textContent = hook.status;
+    }
 
     renderTeamReadiness("#restart-ready-status", state, "restartReady");
     const myReady = !!(state.restartReady && state.restartReady[myRole]);

@@ -30,14 +30,21 @@ function normalizeRoom(room, now, maxAgeMs) {
     board: room.board || { pins: {}, links: [] },
     chat: Array.isArray(room.chat) ? room.chat.slice(-200) : [],
     questionsAsked: Array.isArray(room.questionsAsked) ? room.questionsAsked : [],
+    interviewEvidence: room.interviewEvidence && typeof room.interviewEvidence === "object" ? room.interviewEvidence : {},
     interviewStates: room.interviewStates && typeof room.interviewStates === "object" ? room.interviewStates : {},
     confrontationsSolved: Array.isArray(room.confrontationsSolved) ? room.confrontationsSolved : [],
     deductionsSolved: Array.isArray(room.deductionsSolved) ? room.deductionsSolved : [],
     threadDrafts: room.threadDrafts && typeof room.threadDrafts === "object" ? room.threadDrafts : {},
     threadsSolved: Array.isArray(room.threadsSolved) ? room.threadsSolved : [],
+    operation: {
+      submissions: { A: false, B: false, ...((room.operation && room.operation.submissions) || {}) },
+      solved: !!(room.operation && room.operation.solved)
+    },
     hintState: { threadFailures: 0, ...(room.hintState || {}) },
     progressAt: Number.isFinite(room.progressAt) ? room.progressAt : room.updatedAt,
     briefingReady: { A: false, B: false, ...(room.briefingReady || {}) },
+    difficultyVotes: { A: null, B: null, ...(room.difficultyVotes || {}) },
+    difficulty: typeof room.difficulty === "string" ? room.difficulty : null,
     callReady: { A: false, B: false, ...(room.callReady || {}) },
     restartReady: { A: false, B: false, ...(room.restartReady || {}) },
     accusationDraft: {
@@ -49,6 +56,10 @@ function normalizeRoom(room, now, maxAgeMs) {
       readyB: false,
       ...(room.accusationDraft || {})
     },
+    hunches: { A: null, B: null, ...(room.hunches || {}) },
+    activity: room.activity && typeof room.activity === "object" ? room.activity : null,
+    startedAt: Number.isFinite(room.startedAt) ? room.startedAt : null,
+    completedAt: Number.isFinite(room.completedAt) ? room.completedAt : null,
     result: room.result || null
   };
 }

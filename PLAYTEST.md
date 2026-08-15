@@ -11,7 +11,7 @@ Use this pass with two people who have not read `server/caseData.js`. Separate d
 
 Release preflight passes when the automated suite is green, both players receive different roles, and the case moves to the briefing without a refresh.
 
-Before investigating, have only one detective mark ready. Confirm both remain on the briefing. The investigation should begin only when the second detective independently marks ready.
+Choose different difficulty modes and confirm neither player can ready. Then choose the same mode. Have only one detective mark ready and confirm both remain on the briefing. The investigation should begin only when the second detective independently marks ready.
 
 ## First ten minutes
 
@@ -20,6 +20,7 @@ Watch without coaching beyond the in-game tutorial.
 - Each player should understand that they own only half the investigation.
 - The Street should choose a reconstruction focus, recognize a mismatched approach from its feedback, and use field notes to unlock another search.
 - The Desk should choose an interview approach, recover from one composure misread, recognize gated follow-ups, and use the persistent transcript.
+- When Present Evidence becomes appropriate, choose one wrong filed document first. The subject should reject its relevance without revealing the correct file; the right document should appear in the earned transcript.
 - At least one exact clue, time, name, or number should be sent over the Radio Line.
 - A player should be able to reopen filed evidence from Case Files.
 
@@ -30,6 +31,7 @@ If either player asks “what am I supposed to do?” before trying one of the v
 - Confirm Act 2 opens only after combined progress.
 - Confirm the locked supply closet cannot be bypassed without the partner's record.
 - Confirm a confrontation remains locked until both its earlier testimony and evidence prerequisites exist.
+- After A7 and B8 are filed, confirm Cross-Wire opens. The two players should receive different copies, need to speak aloud, and be unable to finish with only one correct half.
 - Submit one plausible but incorrect Case Thread arrangement. It should identify one weak role without consuming evidence or revealing the right clue. Repeat the mistake once and confirm an optional nudge appears.
 - Complete one Case Thread. Both players should see its conclusion.
 - Try one plausible but unsupported Evidence Board pair. It should be rejected without consuming evidence, then complete one valid suspect-elimination link.
@@ -39,12 +41,13 @@ The case should feel demanding because players must compare information and infe
 
 ## Final call
 
-- The call remains locked until 14 evidence items, three Case Threads, two suspect eliminations, and two contradictions are complete.
+- The call remains locked until 14 evidence items, three Case Threads, the Cross-Wire, two suspect eliminations, and two contradictions are complete.
 - One detective marking “Ready to Make Call” must leave both players on the board until the partner also agrees.
 - Both players can review the same four-part theory: who, where, why, and how.
 - Editing any answer clears both ready checks.
 - One ready player cannot submit alone.
 - The ending explains the submitted theory, the correct theory when needed, the supporting evidence, and why the two strongest alternative suspects fail.
+- The ending compares sealed hunches, reports team activity, explains the completed Cross-Wire, and reveals the File 02 black-sun continuation hook.
 - One player marking “Play Again” must not remove the other from the ending recap; restart only after both agree.
 
 ## Accessibility and device checks

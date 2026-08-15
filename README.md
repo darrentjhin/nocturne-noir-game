@@ -11,11 +11,13 @@ You and your partner play **two different detectives working the same case from 
 - **Detective A — "The Street"** explores physical locations — walk into a scene and examine multiple hotspots (desks, drawers, booths, lockers), not just click-and-read.
 - **Detective B — "The Desk"** works people — interviews, bank statements, personnel files, permits.
 
-The two roles play differently. The Street chooses a reconstruction focus at each physical scene, tests whether objects answer that question, and uses earlier field notes to open deeper searches. The Desk conducts face-to-face, portrait-driven interviews by choosing Rapport, Direct, Pressure, or Present Evidence; a poor read changes the subject's composure but never permanently locks progress. Broad questions open follow-ups, testimony releases records, and evidence from the Street unlocks confrontations.
+The two roles play differently. The Street chooses a reconstruction focus at each physical scene, tests whether objects answer that question, and uses earlier field notes to open deeper searches. The Desk conducts face-to-face, portrait-driven interviews by choosing Rapport, Direct, Pressure, or Present Evidence; presenting evidence now requires selecting the exact filed document that supports the question. A poor read changes the subject's composure but never permanently locks progress. Broad questions open follow-ups, testimony releases records, and evidence from the Street unlocks confrontations.
 
 One scene is physically locked — its 3-digit code is buried in a document only the *other* detective can earn, so you have to radio it over. A second act of leads unlocks mid-case. Filed evidence remains searchable in **Case Files**. Three shared **Case Threads** require placing multiple clues into distinct reasoning roles; the **Evidence Board** is reserved for defensible links that eliminate two plausible suspects. Players must also break two interview contradictions before making a joint four-part accusation.
 
-The interface tracks leads as **New, Active, Waiting, or Complete** without solving them for the player. Incorrect Case Threads now identify one weak reasoning role, repeated mistakes or a long stall unlock an optional nudge, and the locked final-call control explains every unfinished requirement. The compact **Radio Line** includes quick requests and turns filed evidence IDs into links, so a partner can open the exact file being discussed. At the ending, the game reconstructs the crime in order and shows what each detective contributed.
+The interface tracks leads as **New, Active, Waiting, or Complete** without solving them for the player. Incorrect Case Threads identify one weak reasoning role, repeated mistakes or a long stall unlock an optional nudge, and the locked final-call control explains every unfinished requirement. The compact **Radio Line** includes quick requests and turns filed evidence IDs into links, so a partner can open the exact file being discussed. Mid-case, each detective can seal a private suspect hunch for the final debrief.
+
+Both players must agree on **Story, Detective, or Noir** difficulty before readying the investigation. A late-game **Cross-Wire** procedure gives each role a genuinely private half of the dock trace: The Street must reconstruct the route digits using the Desk's order, while the Desk identifies the courier line using the Street's berth. The ending reconstructs the crime, compares the two opening hunches, reports team activity, and reveals the black-sun thread connecting this case to NOCTURNE File 02.
 
 The browser receives only what the detectives have earned. Future clue text, field conclusions, interview answers, puzzle solutions, valid board pairs, deduction details, the solution, and ending text stay server-side until the corresponding action or ending is reached.
 
@@ -30,7 +32,7 @@ Then open **http://localhost:4173** — one of you clicks "Open a Case" to get a
 
 Shared transitions are unanimous: both detectives must ready the investigation, both must agree to open and submit the final accusation, and both must ready a case restart. One player cannot advance or reset the other player's screen alone.
 
-The rebuilt case takes roughly **45–60 minutes** and requires exactly **two players**. The six-part in-game tutorial opens during the briefing and remains available from the investigation header.
+The rebuilt case takes roughly **50–70 minutes** and requires exactly **two players**. The seven-part in-game tutorial opens during the briefing and remains available from the investigation header.
 
 ## Optional durable rooms
 
@@ -56,7 +58,7 @@ For a complete real-time server path, start the game in one terminal and run thi
 npm run smoke -- http://localhost:4173
 ```
 
-The smoke test creates two independent clients and completes all 17 evidence finds, three Case Threads, two suspect eliminations, two contradictions, the combination puzzle, and a correct synchronized ending. See `PLAYTEST.md` for the human QA pass.
+The smoke test creates two independent clients, confirms shared difficulty, tests private hunches and incorrect evidence presentation, completes all 17 evidence finds, the Cross-Wire, three Case Threads, two suspect eliminations, two contradictions, the combination puzzle, and a correct synchronized ending. See `PLAYTEST.md` for the human QA pass.
 
 ## Project structure
 

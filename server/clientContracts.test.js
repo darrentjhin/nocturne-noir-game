@@ -19,6 +19,7 @@ test("the client gates accusations using the case threshold", () => {
   assert.match(appSource, /deductionsSolved\s*>=\s*caseData\.requiredDeductions/);
   assert.match(appSource, /confrontationsSolved\s*>=\s*caseData\.requiredConfrontations/);
   assert.match(appSource, /threadsSolved\s*>=\s*caseData\.requiredThreads/);
+  assert.match(appSource, /operationsSolved\s*>=\s*caseData\.requiredOperations/);
   assert.match(appSource, /callButton\.dataset\.locked\s*=\s*callUnlocked/);
   assert.match(htmlSource, /id="call-lock-modal"/);
 });
@@ -29,7 +30,9 @@ test("interrogation UI supports portraits, transcripts, locked lines, and record
   assert.match(htmlSource, /id="interview-questions"/);
   assert.match(htmlSource, /id="interview-approaches"/);
   assert.match(htmlSource, /id="interview-composure"/);
+  assert.match(htmlSource, /id="interview-evidence-select"/);
   assert.match(appSource, /socket\.emit\("interview:ask"/);
+  assert.match(appSource, /evidenceId/);
   assert.match(appSource, /sourceRequirementsMet/);
   assert.match(cssSource, /assets\/interrogation-portraits\.png/);
 });
@@ -40,6 +43,18 @@ test("investigation strategy includes shared case threads and selectable field f
   assert.match(appSource, /socket\.emit\("thread:update"/);
   assert.match(appSource, /socket\.emit\("thread:submit"/);
   assert.match(appSource, /sceneMode:/);
+});
+
+test("difficulty, Cross-Wire, hunches, and the series debrief remain part of the case", () => {
+  assert.match(htmlSource, /id="difficulty-options"/);
+  assert.match(appSource, /socket\.emit\("difficulty:vote"/);
+  assert.match(htmlSource, /id="operation-workspace"/);
+  assert.match(appSource, /socket\.emit\("operation:submit"/);
+  assert.match(htmlSource, /id="hunch-panel"/);
+  assert.match(appSource, /socket\.emit\("hunch:lock"/);
+  assert.match(htmlSource, /id="ending-debrief"/);
+  assert.match(htmlSource, /id="series-hook"/);
+  assert.match(cssSource, /\.evidence-workspace\[hidden\]\s*\{\s*display:\s*none;/);
 });
 
 test("the final theory asks who, where, why, and how", () => {
@@ -56,6 +71,7 @@ test("invite, reconnect, tutorial, and ending recap paths remain present", () =>
   assert.match(htmlSource, /id="ending-evidence-grid"/);
   assert.match(htmlSource, /id="ending-reconstruction"/);
   assert.match(htmlSource, /id="ending-contributions"/);
+  assert.match(htmlSource, /id="ending-debrief"/);
   assert.match(appSource, /sessionStorage\.setItem\(SESSION_KEY/);
   assert.match(appSource, /freshInviteTab/);
   assert.match(appSource, /TUTORIAL_SEEN_KEY.*myCode.*myRole/s);

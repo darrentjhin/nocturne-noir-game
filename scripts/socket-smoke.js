@@ -64,12 +64,14 @@ async function run() {
   try {
     const created = await ack(street, "room:create", {});
     const joinedStreet = await ack(street, "room:join", { code: created.code, name: "Smoke Street" });
+    let joinedDeskPromise;
     const joinedDesk = await stateAfter(
       street,
       (state) => state.phase === "briefing" && state.players.A && state.players.B,
-      () => ack(desk, "room:join", { code: created.code, name: "Smoke Desk" }),
+      () => { joinedDeskPromise = ack(desk, "room:join", { code: created.code, name: "Smoke Desk" }); return joinedDeskPromise; },
       "two-player briefing"
     );
+    const joinedDeskResponse = await joinedDeskPromise;
     if (
       joinedStreet.case.solution ||
       joinedStreet.case.endings ||
@@ -78,11 +80,29 @@ async function run() {
       joinedStreet.case.deductions.some((deduction) => deduction.title || deduction.text || deduction.clueIds) ||
       joinedStreet.case.locations.flatMap((location) => location.hotspots).some((hotspot) => hotspot.result || hotspot.mode) ||
       joinedStreet.case.investigationThreads.some((thread) => thread.result || thread.slots.some((slot) => slot.clueId)) ||
-      joinedStreet.case.people.flatMap((person) => person.interrogation.questions).some((question) => question.tag || !question.topic)
+      joinedStreet.case.people.flatMap((person) => person.interrogation.questions).some((question) => question.tag || question.presentClueId || !question.topic) ||
+      joinedStreet.case.cooperativeOperation.answers ||
+      joinedStreet.case.cooperativeOperation.result ||
+      joinedStreet.case.seriesHook
     ) {
       throw new Error("join payload leaked a hidden answer");
     }
     if (!joinedDesk.players.B.connected) throw new Error("Desk did not join");
+    if (!joinedStreet.case.cooperativeOperation.roleBrief.brief.includes("BERTH SIX")) throw new Error("Street did not receive its private Cross-Wire copy");
+    if (!joinedDeskResponse.case.cooperativeOperation.roleBrief.brief.includes("dispatch index")) throw new Error("Desk did not receive its private Cross-Wire copy");
+
+    await stateAfter(
+      street,
+      (state) => state.phase === "briefing" && state.difficultyVotes.A === "detective" && !state.difficulty,
+      () => ack(street, "difficulty:vote", { difficulty: "detective" }),
+      "Street difficulty vote"
+    );
+    await stateAfter(
+      street,
+      (state) => state.phase === "briefing" && state.difficulty === "detective",
+      () => ack(desk, "difficulty:vote", { difficulty: "detective" }),
+      "unanimous difficulty"
+    );
 
     await stateAfter(
       street,
@@ -109,10 +129,11 @@ async function run() {
     };
     const ask = async (personId, questionId) => {
       const question = caseIndex.questions.get(questionId);
+      const approach = approachForQuestion(question);
       latest = await stateAfter(
         street,
         (state) => state.questionsAsked.includes(questionId),
-        () => ack(desk, "interview:ask", { personId, questionId, approach: approachForQuestion(question) }),
+        () => ack(desk, "interview:ask", { personId, questionId, approach, evidenceId: approach === "evidence" ? question.presentClueId : undefined }),
         `question ${questionId}`
       );
       const result = latest.interviewResults.find((item) => item.id === questionId);
@@ -136,6 +157,18 @@ async function run() {
     await ask("victor", "victor-where");
     await ask("victor", "victor-finance");
     await find(desk, "B", "B2");
+    latest = await stateAfter(
+      street,
+      (state) => state.hunchLocked.A && !state.hunchLocked.B,
+      () => ack(street, "hunch:lock", { suspectId: "victor" }),
+      "Street private hunch"
+    );
+    latest = await stateAfter(
+      street,
+      (state) => state.hunchLocked.A && state.hunchLocked.B,
+      () => ack(desk, "hunch:lock", { suspectId: "ivy" }),
+      "Desk private hunch"
+    );
     await find(street, "A", "A4");
     await ask("victor", "victor-insurance");
     await ask("ivy", "ivy-timeline");
@@ -159,6 +192,27 @@ async function run() {
     await ask("dane", "dane-gala");
     await ask("dane", "dane-permit");
     await find(desk, "B", "B8");
+    if (!latest.operation.unlocked) throw new Error("Cross-Wire did not unlock from the two role records");
+    const wrongTrace = await softAck(street, "operation:submit", { answer: "381" });
+    if (!wrongTrace.error.includes("exact order")) throw new Error("Cross-Wire did not explain the recoverable route error");
+    latest = await stateAfter(
+      street,
+      (state) => state.operation.submissions.A && !state.operation.submissions.B,
+      () => ack(street, "operation:submit", { answer: "138" }),
+      "Street Cross-Wire half"
+    );
+    latest = await stateAfter(
+      street,
+      (state) => state.operation.solved,
+      () => ack(desk, "operation:submit", { answer: "marrow" }),
+      "joint Cross-Wire completion"
+    );
+    latest = await stateAfter(
+      street,
+      (state) => state.interviewStates.ivy && state.interviewStates.ivy.missteps === 1 && !state.questionsAsked.includes("ivy-courier"),
+      () => softAck(desk, "interview:ask", { personId: "ivy", questionId: "ivy-courier", approach: "evidence", evidenceId: "B3" }),
+      "recoverable wrong evidence presentation"
+    );
     await ask("ivy", "ivy-courier");
     await ask("dane", "dane-ivy");
     await ask("dane", "dane-note");
@@ -211,7 +265,7 @@ async function run() {
         `deduction ${a}+${b}`
       );
     }
-    if (latest.deductionsSolved.length !== 2 || latest.threadsSolved.length !== 3 || latest.confrontationsSolved.length !== 2) {
+    if (latest.deductionsSolved.length !== 2 || latest.threadsSolved.length !== 3 || latest.confrontationsSolved.length !== 2 || !latest.operation.solved) {
       throw new Error("The complete theory did not unlock");
     }
 
@@ -251,7 +305,10 @@ async function run() {
       latest.result !== "correct" ||
       !latest.endingReveal ||
       latest.endingReveal.solution.suspect !== "ivy" ||
-      !latest.endingReveal.solutionContributions
+      !latest.endingReveal.solutionContributions ||
+      !latest.endingReveal.debrief ||
+      latest.endingReveal.debrief.hunches.A !== "victor" ||
+      !latest.endingReveal.seriesHook
     ) {
       throw new Error("Correct ending reveal was not delivered");
     }
@@ -267,7 +324,7 @@ async function run() {
       () => desk.emit("restart:ready", { ready: true }),
       "two-player case restart"
     );
-    if (latest.found.A.length || latest.found.B.length || latest.briefingReady.A || latest.briefingReady.B) {
+    if (latest.found.A.length || latest.found.B.length || latest.briefingReady.A || latest.briefingReady.B || latest.difficulty || latest.operation.solved) {
       throw new Error("Restart did not reset the case cleanly");
     }
     console.log(`Socket smoke passed: ${created.code}, all four shared transitions required both detectives.`);

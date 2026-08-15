@@ -14,8 +14,12 @@ const {
   cleanPlayerName,
   chooseRoleForJoin,
   deductionForLink,
+  difficultyConfirmed,
+  evidenceMatchesQuestion,
   evaluateThreadDraft,
   fieldModeMatches,
+  operationAnswerMatches,
+  operationUnlocked,
   pinPositionForFoundCount,
   sanitizeAccusationUpdate,
   sanitizeThreadUpdate,
@@ -33,6 +37,7 @@ function room(overrides = {}) {
     confrontationsSolved: [],
     deductionsSolved: [],
     threadsSolved: [],
+    operation: { submissions: { A: false, B: false }, solved: false },
     ...overrides
   };
 }
@@ -108,11 +113,13 @@ test("the accusation requires evidence, all deductions, and two broken contradic
     found: { A: Array(7).fill("a"), B: Array(7).fill("b") },
     deductionsSolved,
     threadsSolved,
-    confrontationsSolved
+    confrontationsSolved,
+    operation: { submissions: { A: true, B: true }, solved: true }
   });
   assert.equal(accusationUnlocked(thirteen), false);
   assert.equal(accusationUnlocked(fourteenNoDeduction), false);
   assert.equal(accusationUnlocked(fourteenNoConfrontations), false);
+  assert.equal(accusationUnlocked({ ...fourteen, operation: { submissions: { A: false, B: false }, solved: false } }), false);
   assert.equal(accusationUnlocked(fourteen), true);
   assert.equal(canAdvancePhase(thirteen, "accusation"), false);
   assert.equal(canAdvancePhase(fourteen, "accusation"), false, "forward transition uses two-player call readiness");
@@ -137,6 +144,23 @@ test("interview approaches reward reading the line without exposing a hidden ans
   assert.equal(approachForQuestion(index.questions.get("sal-threat")), "pressure");
   assert.equal(approachForQuestion(index.questions.get("victor-where")), "direct");
   assert.equal(approachForQuestion(index.questions.get("dane-note")), "evidence");
+});
+
+test("evidence presentation and the Cross-Wire require the exact earned records", () => {
+  const index = buildCaseIndex(caseData);
+  assert.equal(evidenceMatchesQuestion(index.questions.get("ivy-courier"), "A9"), true);
+  assert.equal(evidenceMatchesQuestion(index.questions.get("ivy-courier"), "B3"), false);
+  const state = room({ found: { A: ["A7"], B: ["B8"] } });
+  assert.equal(operationUnlocked(state), true);
+  assert.equal(operationAnswerMatches("A", "138"), true);
+  assert.equal(operationAnswerMatches("B", "MARROW"), true);
+  assert.equal(operationAnswerMatches("A", "381"), false);
+});
+
+test("both detectives must confirm the same difficulty before briefing readiness", () => {
+  const state = room({ difficultyVotes: { A: "detective", B: "detective" }, difficulty: "detective" });
+  assert.equal(difficultyConfirmed(state), true);
+  assert.equal(difficultyConfirmed({ ...state, difficultyVotes: { A: "story", B: "noir" }, difficulty: null }), false);
 });
 
 test("case threads accept only found evidence and require every slot to support the theory", () => {
@@ -218,6 +242,7 @@ test("the complete two-role critical path is solvable without exhaustive clickin
   ask("dane", "dane-note");
   state.deductionsSolved.push("victor-cleared", "sal-cleared");
   state.threadsSolved.push("timeline", "money-trail", "reel-route");
+  state.operation = { submissions: { A: true, B: true }, solved: true };
 
   assert.ok(state.found.A.length + state.found.B.length >= caseData.accusationUnlockThreshold);
   assert.deepEqual(state.confrontationsSolved, ["ivy-alibi", "dane-payments"]);
