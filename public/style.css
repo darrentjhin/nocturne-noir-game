@@ -157,6 +157,30 @@ html, body {
   letter-spacing: 2.4px;
   text-transform: uppercase;
 }
+.detective-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+.detective-preview-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgba(15,13,10,.82);
+  text-align: left;
+}
+.detective-preview-image {
+  height: 112px;
+  background-image: linear-gradient(180deg, transparent 58%, rgba(10,9,8,.76)), url("assets/detective-roles.png");
+  background-size: 200% auto;
+  background-repeat: no-repeat;
+  filter: saturate(.78) contrast(1.06);
+}
+.detective-preview-image.role-a, .role-portrait.role-a { background-position: 0 28%; }
+.detective-preview-image.role-b, .role-portrait.role-b { background-position: 100% 28%; }
+.detective-preview-card > div:last-child { padding: 9px 11px 11px; }
+.detective-preview-card strong { display: block; color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1.4px; }
+.detective-preview-card span { display: block; margin-top: 2px; color: var(--ink-dim); font-size: 9px; line-height: 1.4; text-transform: uppercase; letter-spacing: .5px; }
 
 .card-panel {
   background: var(--bg-panel);
@@ -265,12 +289,25 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .briefing-body { text-align: left; line-height: 1.8; color: var(--ink-dim); font-size: 16px; margin: 20px 0; }
 .briefing-body p { margin: 0 0 16px; }
 .role-callout {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   text-align: left;
   background: var(--bg-panel);
   border-left: 3px solid var(--red);
   padding: 16px 20px;
   margin: 24px 0;
   border-radius: 0 3px 3px 0;
+}
+.role-portrait {
+  width: 92px;
+  height: 92px;
+  flex: 0 0 92px;
+  border: 1px solid var(--line);
+  background-image: url("assets/detective-roles.png");
+  background-size: 200% auto;
+  background-repeat: no-repeat;
+  filter: saturate(.78) contrast(1.06);
 }
 .role-callout .role-name { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--gold); }
 .role-callout .role-tag { color: var(--ink-dim); font-size: 14px; margin-top: 4px; }
@@ -599,13 +636,19 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .pin-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .pin-card .pin-owner { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--red-bright); margin-top: 4px; }
 
-.chat-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; min-height: 200px; }
+.chat-panel { align-self: start; min-height: 0; }
+.chat-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chat-panel-head h2 { margin-bottom: 0; }
+.chat-panel-head span { color: #78bd83; font-size: 8px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+.chat-intro { margin: 7px 0 10px; color: var(--ink-dim); font-size: 10px; line-height: 1.4; }
+.chat-log { flex: 0 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 9px; min-height: 120px; max-height: 260px; }
 .chat-msg { font-size: 13px; line-height: 1.4; }
 .chat-msg .chat-time { color: var(--line); font-size: 10px; margin-right: 6px; }
 .chat-msg .chat-name { color: var(--gold); font-weight: bold; margin-right: 4px; }
 .chat-msg .chat-text { color: var(--ink); }
-.chat-form { display: flex; gap: 6px; }
-.chat-form input { flex: 1; background: #0d0c0a; border: 1px solid var(--line); color: var(--ink); padding: 8px 10px; font-family: inherit; border-radius: 3px; }
+.chat-form { display: flex; align-items: stretch; gap: 6px; }
+.chat-form input { flex: 1; min-width: 0; background: #0d0c0a; border: 1px solid var(--line); color: var(--ink); padding: 8px 10px; font-family: inherit; border-radius: 3px; }
+.chat-form .btn { flex: 0 0 auto; width: auto; margin: 0; padding: 8px 11px; font-size: 12px; }
 .radio-alert {
   position: fixed;
   right: 72px;
@@ -1105,6 +1148,7 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 
 /* ---------- Tutorial ---------- */
 .tutorial-card { max-width: 460px; text-align: center; }
+.tutorial-step-label { margin: 6px 0 2px; color: var(--gold); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; }
 .tutorial-icon { font-size: 44px; margin: 6px 0 4px; }
 .tutorial-card h3 { margin-bottom: 10px; }
 .tutorial-card p { text-align: left; line-height: 1.7; }
@@ -1144,9 +1188,13 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
   .pin-card .pin-text { font-size: 12px; }
   .team-ready-status { grid-template-columns: 1fr; }
   .team-ready-chip, .team-ready-help { font-size: 13px; }
+  .role-callout { align-items: flex-start; }
+  .role-portrait { width: 76px; height: 76px; flex-basis: 76px; }
+  .chat-panel { width: 100%; }
+  .chat-log { min-height: 88px; max-height: 140px; }
   .radio-alert { left: 12px; right: 64px; bottom: 12px; max-width: none; font-size: 13px; }
   .modal-overlay { align-items: flex-start; overflow-y: auto; padding: 18px 0; }
   .modal-card { padding: 24px 20px; }
   .ending-evidence-grid { grid-template-columns: 1fr; }
-  .game-facts { margin-top: -12px; }
+  .detective-preview-image { height: 92px; }
 }

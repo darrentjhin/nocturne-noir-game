@@ -55,6 +55,17 @@ test("invite, reconnect, tutorial, and ending recap paths remain present", () =>
   assert.match(htmlSource, /id="ending-evidence-grid"/);
   assert.match(appSource, /sessionStorage\.setItem\(SESSION_KEY/);
   assert.match(appSource, /freshInviteTab/);
+  assert.match(appSource, /TUTORIAL_SEEN_KEY.*myCode.*myRole/s);
+  assert.match(htmlSource, /HOW TO PLAY · YOUR OWN COPY|id="tutorial-role-label"/);
+  assert.match(htmlSource, /Skip for me/);
+});
+
+test("the cover introduces both detective roles with original portrait art", () => {
+  assert.match(htmlSource, /class="detective-preview"/);
+  assert.match(htmlSource, /The Street/);
+  assert.match(htmlSource, /The Desk/);
+  assert.match(cssSource, /assets\/detective-roles\.png/);
+  assert.ok(fs.existsSync(path.join(projectRoot, "public", "assets", "detective-roles.png")));
 });
 
 test("interactive cards expose button semantics", () => {
@@ -78,6 +89,13 @@ test("fieldwork, case-file sharing, and board guidance remain available", () => 
   assert.match(htmlSource, /id="link-status"[^>]*aria-live="polite"/);
   assert.match(appSource, /function shareEvidence/);
   assert.match(appSource, /class="pin-id">\$\{clueId\}/);
+});
+
+test("the Radio Line composer remains compact and prominent in the investigation", () => {
+  assert.match(htmlSource, /class="chat-panel" aria-label="Radio Line communication"/);
+  assert.match(htmlSource, /Live with partner/);
+  assert.match(cssSource, /\.chat-form \.btn \{[^}]*width:\s*auto;[^}]*margin:\s*0;/s);
+  assert.match(cssSource, /\.chat-log \{[^}]*max-height:\s*260px;/s);
 });
 
 test("interview and ending answers arrive through earned room state", () => {

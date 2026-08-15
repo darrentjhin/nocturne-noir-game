@@ -124,7 +124,7 @@
     {
       icon: "🕵️",
       title: "You only get half the case",
-      body: "The Street reconstructs physical scenes. The Desk questions witnesses and obtains records. Important leads are deliberately split, so compare exact names, times, and numbers over the Radio Line."
+      body: "You and your partner each receive this guide. The Street reconstructs physical scenes; The Desk questions witnesses and obtains records. Neither player can solve the case alone, so use the Radio Line to compare exact names, times, evidence IDs, and codes."
     },
     {
       icon: "🔎",
@@ -159,6 +159,8 @@
     $("#tutorial-icon").textContent = s.icon;
     $("#tutorial-title").textContent = s.title;
     $("#tutorial-body").textContent = s.body;
+    $("#tutorial-step-label").textContent = `Step ${tutorialStep + 1} of ${tutorialSteps.length} · ${myRole && caseData ? caseData.roles[myRole].name : "Both detectives"}`;
+    $("#tutorial-role-label").textContent = "HOW TO PLAY · YOUR OWN COPY";
     $("#tutorial-dots").innerHTML = tutorialSteps
       .map((_, i) => `<span class="tutorial-dot${i === tutorialStep ? " active" : ""}"></span>`)
       .join("");
@@ -175,7 +177,7 @@
   function closeTutorial() {
     $("#tutorial-modal").classList.remove("active");
     try {
-      localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+      sessionStorage.setItem(`${TUTORIAL_SEEN_KEY}:${myCode || "preview"}:${myRole || "guest"}`, "1");
     } catch (e) {}
   }
 
@@ -493,7 +495,7 @@
         lastFoundTotal = 0;
         let seen = null;
         try {
-          seen = localStorage.getItem(TUTORIAL_SEEN_KEY);
+          seen = sessionStorage.getItem(`${TUTORIAL_SEEN_KEY}:${myCode}:${myRole}`);
         } catch (e) {}
         if (!seen) {
           // Teach the loop during the briefing, before the active investigation
@@ -576,8 +578,11 @@
     $("#briefing-body").innerHTML = caseData.briefing.body.map((p) => `<p>${p}</p>`).join("");
     const role = caseData.roles[myRole];
     $("#role-callout").innerHTML = `
-      <div class="role-name">You are: ${role.name}</div>
-      <div class="role-tag">${role.tagline}</div>
+      <div class="role-portrait role-${myRole.toLowerCase()}" role="img" aria-label="Portrait of ${role.name}"></div>
+      <div>
+        <div class="role-name">You are: ${role.name}</div>
+        <div class="role-tag">${role.tagline}</div>
+      </div>
     `;
     renderTeamReadiness("#briefing-ready-status", state, "briefingReady");
     const myReady = !!(state.briefingReady && state.briefingReady[myRole]);

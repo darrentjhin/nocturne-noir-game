@@ -26,6 +26,16 @@
     <p class="subtitle">a two-detective case</p>
     <div class="tagline">The city doesn't give up the truth to just one of you.</div>
     <div class="cover-player-count">A case for 2 players</div>
+    <div class="detective-preview" aria-label="The two detective roles">
+      <div class="detective-preview-card">
+        <div class="detective-preview-image role-a" role="img" aria-label="The Street detective in a rain-dark trench coat"></div>
+        <div><strong>The Street</strong><span>Scenes · access · reconstruction</span></div>
+      </div>
+      <div class="detective-preview-card">
+        <div class="detective-preview-image role-b" role="img" aria-label="The Desk detective working beneath a file-room lamp"></div>
+        <div><strong>The Desk</strong><span>People · records · contradictions</span></div>
+      </div>
+    </div>
 
     <div class="card-panel">
       <div class="tabs">
@@ -153,11 +163,12 @@
       </section>
     </section>
 
-    <section class="chat-panel">
-      <h2>Radio Line</h2>
+    <section class="chat-panel" aria-label="Radio Line communication">
+      <div class="chat-panel-head"><h2>Radio Line</h2><span>Live with partner</span></div>
+      <p class="chat-intro">Share exact names, times, evidence IDs, and codes.</p>
       <div id="chat-log" class="chat-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Messages from your partner"></div>
       <form id="chat-form" class="chat-form">
-        <input type="text" id="chat-input" maxlength="500" placeholder="Say something to your partner..." autocomplete="off" aria-label="Radio message" />
+        <input type="text" id="chat-input" maxlength="500" placeholder="Message your partner…" autocomplete="off" aria-label="Radio message" />
         <button class="btn primary small" type="submit">Send</button>
       </form>
     </section>
@@ -297,14 +308,15 @@
 <div id="tutorial-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
   <div class="modal-card tutorial-card">
     <button class="modal-x" id="tutorial-close" aria-label="Close">&times;</button>
-    <div class="modal-kicker">HOW TO PLAY</div>
+    <div class="modal-kicker" id="tutorial-role-label">HOW TO PLAY</div>
+    <div class="tutorial-step-label" id="tutorial-step-label"></div>
     <div class="tutorial-icon" id="tutorial-icon"></div>
     <h3 id="tutorial-title"></h3>
     <p id="tutorial-body"></p>
     <div class="tutorial-dots" id="tutorial-dots"></div>
     <div class="tutorial-nav">
       <button class="btn ghost small" id="tutorial-back">Back</button>
-      <button class="btn ghost small" id="tutorial-skip">Skip</button>
+      <button class="btn ghost small" id="tutorial-skip">Skip for me</button>
       <button class="btn primary small" id="tutorial-next">Next</button>
     </div>
   </div>
