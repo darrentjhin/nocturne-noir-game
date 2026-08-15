@@ -764,6 +764,19 @@ module.exports = {
     }
   ],
 
+  solutionContributions: {
+    A: {
+      title: "The Street reconstructed the route",
+      clueIds: ["A2", "A3", "A4", "A7", "A9"],
+      text: "Physical reconstruction proved deliberate sabotage, identified the editor's tool, uncovered the warning note, and followed the reel to locker 114."
+    },
+    B: {
+      title: "The Desk broke the story",
+      clueIds: ["B2", "B3", "B4", "B6"],
+      text: "Testimony and records exposed the shell payments, destroyed Ivy's timeline, resolved the Voss alias, and cleared Sal's debt motive."
+    }
+  },
+
   endings: {
     correct: {
       title: "Case Closed: The Last Reel",

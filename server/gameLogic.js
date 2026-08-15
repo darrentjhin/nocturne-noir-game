@@ -164,6 +164,19 @@ function threadSolutionMatches(threadId, draft) {
   return thread.slots.every((slot) => draft[slot.id] === slot.clueId);
 }
 
+function evaluateThreadDraft(threadId, draft) {
+  const thread = threadIndex.get(threadId);
+  if (!thread || !draft) return null;
+  const correct = thread.slots.filter((slot) => draft[slot.id] === slot.clueId);
+  const weak = thread.slots.find((slot) => draft[slot.id] !== slot.clueId);
+  return {
+    matched: correct.length,
+    total: thread.slots.length,
+    weakSlotId: weak ? weak.id : null,
+    weakLabel: weak ? weak.label : null
+  };
+}
+
 function bothPlayersReady(room, readinessKey) {
   const readiness = room && room[readinessKey];
   return !!(
@@ -229,6 +242,7 @@ module.exports = {
   clampBoardPosition,
   cleanPlayerName,
   deductionForLink,
+  evaluateThreadDraft,
   fieldModeMatches,
   foundIds,
   isValidRole,

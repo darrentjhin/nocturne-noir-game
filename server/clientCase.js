@@ -8,6 +8,16 @@ function questionResult(question, personId) {
   };
 }
 
+function neutralQuestionTopic(tag) {
+  return {
+    PRESS: "REPUTATION",
+    RAPPORT: "RELATIONSHIP",
+    CONFRONT: "DISCREPANCY",
+    EVIDENCE: "PAYMENTS",
+    PERSONAL: "HISTORY"
+  }[tag] || tag;
+}
+
 function createClientCase(data) {
   return {
     ...data,
@@ -31,12 +41,16 @@ function createClientCase(data) {
       interrogation: person.interrogation
         ? {
             ...person.interrogation,
-            questions: person.interrogation.questions.map(({ response, after, ...question }) => question)
+            questions: person.interrogation.questions.map(({ response, after, tag, ...question }) => ({
+              ...question,
+              topic: neutralQuestionTopic(tag)
+            }))
           }
         : person.interrogation
     })),
     solution: undefined,
     solutionEvidence: undefined,
+    solutionContributions: undefined,
     endings: undefined
   };
 }
@@ -87,7 +101,8 @@ function endingRevealForRoom(data, room) {
   return {
     ending: data.endings[room.result],
     solution: data.solution,
-    solutionEvidence: data.solutionEvidence
+    solutionEvidence: data.solutionEvidence,
+    solutionContributions: data.solutionContributions
   };
 }
 

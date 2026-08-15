@@ -126,6 +126,10 @@
         <h3 id="objective-title">Next moves</h3>
         <div id="objective-list" class="objective-list"></div>
       </aside>
+      <aside id="adaptive-hint" class="adaptive-hint" hidden>
+        <button type="button" id="btn-adaptive-hint" aria-expanded="false">Need a nudge?</button>
+        <p id="adaptive-hint-text" hidden></p>
+      </aside>
       <div id="leads-list" class="leads-list"></div>
     </section>
 
@@ -166,6 +170,11 @@
     <section class="chat-panel" aria-label="Radio Line communication">
       <div class="chat-panel-head"><h2>Radio Line</h2><span>Live with partner</span></div>
       <p class="chat-intro">Share exact names, times, evidence IDs, and codes.</p>
+      <div class="radio-quick-actions" aria-label="Quick requests">
+        <button type="button" data-radio-request="Need corroboration for my current lead.">Need corroboration</button>
+        <button type="button" data-radio-request="Can you verify the exact time in your files?">Check a time</button>
+        <button type="button" data-radio-request="Please review our current Case Thread before we test it.">Review theory</button>
+      </div>
       <div id="chat-log" class="chat-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Messages from your partner"></div>
       <form id="chat-form" class="chat-form">
         <input type="text" id="chat-input" maxlength="500" placeholder="Message your partner…" autocomplete="off" aria-label="Radio message" />
@@ -322,6 +331,19 @@
   </div>
 </div>
 
+<!-- SCREEN: Locked final call explanation -->
+<div id="call-lock-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="call-lock-title">
+  <div class="modal-card call-lock-card">
+    <button class="modal-x" id="call-lock-close" aria-label="Close">&times;</button>
+    <div class="modal-kicker">FINAL CALL STATUS</div>
+    <h3 id="call-lock-title">What remains</h3>
+    <p class="call-lock-intro">The final accusation opens only when the case can support who, where, why, and how.</p>
+    <div id="call-lock-list" class="call-lock-list"></div>
+    <button type="button" class="btn ghost small" id="call-lock-nudge">Show a useful next step</button>
+    <p id="call-lock-nudge-text" class="call-lock-nudge-text" hidden></p>
+  </div>
+</div>
+
 <!-- SCREEN: Accusation -->
 <section id="screen-accusation" class="screen">
   <div class="landing-wrap wide">
@@ -364,6 +386,11 @@
       <div class="modal-kicker">CASE ANALYSIS</div>
       <h2 id="ending-recap-title">How the evidence connects</h2>
       <div id="ending-accusation-summary" class="ending-accusation-summary"></div>
+      <div class="modal-kicker ending-section-kicker">THE RECONSTRUCTION</div>
+      <div id="ending-reconstruction" class="ending-reconstruction"></div>
+      <div class="modal-kicker ending-section-kicker">WHAT EACH DETECTIVE PROVED</div>
+      <div id="ending-contributions" class="ending-contributions"></div>
+      <div class="modal-kicker ending-section-kicker">ALTERNATIVES ELIMINATED</div>
       <div id="ending-evidence-grid" class="ending-evidence-grid"></div>
     </section>
     <div class="team-ready-panel ending-ready-panel" aria-labelledby="restart-ready-title">

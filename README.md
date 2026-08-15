@@ -15,6 +15,8 @@ The two roles play differently. The Street chooses a reconstruction focus at eac
 
 One scene is physically locked — its 3-digit code is buried in a document only the *other* detective can earn, so you have to radio it over. A second act of leads unlocks mid-case. Filed evidence remains searchable in **Case Files**. Three shared **Case Threads** require placing multiple clues into distinct reasoning roles; the **Evidence Board** is reserved for defensible links that eliminate two plausible suspects. Players must also break two interview contradictions before making a joint four-part accusation.
 
+The interface tracks leads as **New, Active, Waiting, or Complete** without solving them for the player. Incorrect Case Threads now identify one weak reasoning role, repeated mistakes or a long stall unlock an optional nudge, and the locked final-call control explains every unfinished requirement. The compact **Radio Line** includes quick requests and turns filed evidence IDs into links, so a partner can open the exact file being discussed. At the ending, the game reconstructs the crime in order and shows what each detective contributed.
+
 The browser receives only what the detectives have earned. Future clue text, field conclusions, interview answers, puzzle solutions, valid board pairs, deduction details, the solution, and ending text stay server-side until the corresponding action or ending is reached.
 
 ## Run it

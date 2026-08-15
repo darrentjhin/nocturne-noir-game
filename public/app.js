@@ -37,6 +37,9 @@
   const interviewFeedback = {};
   const fieldFocus = {};
   const fieldFeedback = {};
+  const openedLeadIds = new Set();
+  let fieldMissteps = 0;
+  let hintExpanded = false;
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -492,6 +495,9 @@
       lastPhase = state.phase;
       if (enteringBriefing) {
         contextualTipsShown.clear();
+        openedLeadIds.clear();
+        fieldMissteps = 0;
+        hintExpanded = false;
         lastFoundTotal = 0;
         let seen = null;
         try {
@@ -654,6 +660,48 @@
     );
   }
 
+  function callRequirements(state) {
+    const foundTotal = state.found.A.length + state.found.B.length;
+    return [
+      { label: "Filed evidence", current: foundTotal, required: caseData.accusationUnlockThreshold, action: "Follow an Active lead or ask your partner what is still waiting." },
+      { label: "Case Threads", current: (state.threadsSolved || []).length, required: caseData.requiredThreads, action: "Open Case Threads and assign evidence by what it proves." },
+      { label: "Suspect eliminations", current: (state.deductionsSolved || []).length, required: caseData.requiredDeductions, action: "Pair evidence that rules out your strongest alternative suspects." },
+      { label: "Broken contradictions", current: (state.confrontationsSolved || []).length, required: caseData.requiredConfrontations, action: "Return to an interview with testimony and the evidence that disproves it." }
+    ];
+  }
+
+  function currentNudge(state) {
+    const next = callRequirements(state).find((item) => item.current < item.required);
+    return next ? next.action : "Compare the completed four-part theory with your partner and make the call together.";
+  }
+
+  function totalInterviewMissteps(state) {
+    return Object.values(state.interviewStates || {}).reduce((total, item) => total + Number(item.missteps || 0), 0);
+  }
+
+  function renderAdaptiveHint(state) {
+    const stalled = Date.now() - Number(state.progressAt || Date.now()) >= 4 * 60 * 1000;
+    const repeatedFailures = Number(state.hintState && state.hintState.threadFailures) >= 2 || totalInterviewMissteps(state) >= 2 || fieldMissteps >= 2;
+    const container = $("#adaptive-hint");
+    container.hidden = !(stalled || repeatedFailures);
+    if (container.hidden) return;
+    const text = $("#adaptive-hint-text");
+    text.textContent = currentNudge(state);
+    text.hidden = !hintExpanded;
+    const button = $("#btn-adaptive-hint");
+    button.setAttribute("aria-expanded", hintExpanded ? "true" : "false");
+    button.textContent = hintExpanded ? "Hide nudge" : stalled ? "Need a nudge?" : "A nudge is available";
+  }
+
+  $("#btn-adaptive-hint").addEventListener("click", () => {
+    hintExpanded = !hintExpanded;
+    if (latestState) renderAdaptiveHint(latestState);
+  });
+
+  setInterval(() => {
+    if (latestState && latestState.phase === "investigation") renderAdaptiveHint(latestState);
+  }, 30_000);
+
   // ---------- Investigation ----------
   function renderInvestigation(state) {
     if (!Object.keys(clueMeta).length) buildClueMeta();
@@ -685,7 +733,9 @@
     const deductionsRemaining = Math.max(0, caseData.requiredDeductions - (state.deductionsSolved || []).length);
     const threadsRemaining = Math.max(0, caseData.requiredThreads - (state.threadsSolved || []).length);
     const confrontationsRemaining = Math.max(0, caseData.requiredConfrontations - confrontationCount);
-    callButton.disabled = !callUnlocked;
+    callButton.disabled = false;
+    callButton.dataset.locked = callUnlocked ? "false" : "true";
+    callButton.setAttribute("aria-haspopup", callUnlocked ? "false" : "dialog");
     const callReady = state.callReady || { A: false, B: false };
     const myCallReady = !!callReady[myRole];
     const partnerCallReady = !!callReady[myRole === "A" ? "B" : "A"];
@@ -741,6 +791,14 @@
       const questions = (lead.interrogation && lead.interrogation.questions) || [];
       const askedCount = questions.filter((question) => (state.questionsAsked || []).includes(question.id)).length;
       const allSeen = recordsComplete && (!questions.length || askedCount === questions.length);
+      const availableQuestions = questions.filter((question) => !(state.questionsAsked || []).includes(question.id) && sourceRequirementsMet(question, state));
+      const availableRecords = visibleHotspots.filter((hotspot) => {
+        const complete = hotspotCountable(hotspot) ? myFound.includes(hotspot.clueId) : myFlavor.includes(hotspot.id);
+        return !complete && (hotspot.type === "flavor" || sourceRequirementsMet(hotspot, state));
+      });
+      const hasAvailableMove = availableQuestions.length > 0 || availableRecords.length > 0;
+      const hasProgress = foundCount > 0 || askedCount > 0 || visibleHotspots.some((hotspot) => myFlavor.includes(hotspot.id));
+      const leadState = allSeen ? "complete" : !openedLeadIds.has(lead.id) && !hasProgress ? "new" : hasAvailableMove ? "active" : "waiting";
       const icon = lead.interrogation
         ? `<span class="lead-portrait" style="background-position:${lead.portraitPosition}" aria-hidden="true"></span>`
         : lead.scenePosition
@@ -750,11 +808,11 @@
         ? `${askedCount}/${questions.length} questions · ${foundCount}/${countable.length} records`
         : `${foundCount}/${countable.length} evidence found`;
 
-      div.className = "lead-item" + (allSeen ? " exhausted" : "");
+      div.className = `lead-item lead-${leadState}` + (allSeen ? " exhausted" : "");
       div.innerHTML = `
         ${icon}
         <div class="lead-item-body">
-          <div class="lead-name">${lead.name}${lead.role ? " — " + lead.role : ""}</div>
+          <div class="lead-name-row"><div class="lead-name">${lead.name}${lead.role ? " — " + lead.role : ""}</div><span class="lead-state-badge">${leadState}</span></div>
           <div class="lead-blurb">${lead.blurb}</div>
           <div class="lead-progress">${progress}${allSeen ? " · complete" : ""}</div>
         </div>
@@ -776,6 +834,7 @@
     renderCorkboard(state);
     renderThreads(state);
     renderChat(state);
+    renderAdaptiveHint(state);
   }
 
   function renderObjectives(state) {
@@ -1016,6 +1075,8 @@
   }
 
   function openScene(lead) {
+    openedLeadIds.add(lead.id);
+    if (latestState) renderInvestigation(latestState);
     if (lead.interrogation) {
       openInterview(lead);
       return;
@@ -1145,7 +1206,7 @@
       button.disabled = !available;
       const tag = document.createElement("span");
       tag.className = "question-tag";
-      tag.textContent = available ? question.tag : "LOCKED";
+      tag.textContent = available ? (question.topic || "QUESTION") : "LOCKED";
       const copy = document.createElement("span");
       copy.className = "question-copy";
       copy.textContent = question.prompt;
@@ -1447,6 +1508,7 @@
       socket.emit("clue:inspect", { clueId, sceneMode: opts.sceneMode }, (response) => {
         if (!response || !response.ok || !response.clue) {
           if (response && response.soft && opts.sceneId) {
+            fieldMissteps += 1;
             fieldFeedback[opts.sceneId] = response.error;
             const lead = caseData.locations.find((location) => location.id === opts.sceneId);
             if (lead) renderScene(lead, latestState);
@@ -1852,12 +1914,17 @@
     if (signature === lastChatSignature) return;
     lastChatSignature = signature;
     const log = $("#chat-log");
+    const filed = new Set([...state.found.A, ...state.found.B]);
     log.innerHTML = state.chat
       .map((m) => {
         const time = new Date(m.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-        return `<div class="chat-msg"><span class="chat-time">${time}</span><span class="chat-name">${escapeHtml(m.name)}:</span><span class="chat-text">${escapeHtml(m.text)}</span></div>`;
+        const message = escapeHtml(m.text).replace(/\b([AB]\d{1,2})\b/g, (match, clueId) =>
+          filed.has(clueId) ? `<button type="button" class="radio-evidence-link" data-clue-id="${clueId}" title="Open ${clueId}">${clueId}</button>` : match
+        );
+        return `<div class="chat-msg"><span class="chat-time">${time}</span><span class="chat-name">${escapeHtml(m.name)}:</span><span class="chat-text">${message}</span></div>`;
       })
       .join("");
+    $$(".radio-evidence-link").forEach((button) => button.addEventListener("click", () => openDoc(button.dataset.clueId)));
     log.scrollTop = log.scrollHeight;
   }
 
@@ -1893,12 +1960,41 @@
     alert.dataset.unreadCount = "0";
   });
 
+  $$("[data-radio-request]").forEach((button) => {
+    button.addEventListener("click", () => socket.emit("chat:send", { text: `📻 ${button.dataset.radioRequest}` }));
+  });
+
   // ---------- Accusation ----------
   $("#btn-goto-accuse").addEventListener("click", () => {
-    if (!latestState || !canMakeCall(latestState)) return;
+    if (!latestState) return;
+    if (!canMakeCall(latestState)) {
+      renderCallLock(latestState);
+      $("#call-lock-modal").classList.add("active");
+      return;
+    }
     const ready = !!(latestState.callReady && latestState.callReady[myRole]);
     socket.emit("call:ready", { ready: !ready });
   });
+  $("#call-lock-close").addEventListener("click", () => $("#call-lock-modal").classList.remove("active"));
+  $("#call-lock-nudge").addEventListener("click", () => {
+    if (!latestState) return;
+    const text = $("#call-lock-nudge-text");
+    text.textContent = currentNudge(latestState);
+    text.hidden = false;
+  });
+
+  function renderCallLock(state) {
+    const list = $("#call-lock-list");
+    list.innerHTML = "";
+    callRequirements(state).forEach((item) => {
+      const row = document.createElement("div");
+      const complete = item.current >= item.required;
+      row.className = "call-lock-row" + (complete ? " complete" : "");
+      row.innerHTML = `<span>${complete ? "✓" : "○"} ${item.label}</span><strong>${item.current}/${item.required}</strong>`;
+      list.appendChild(row);
+    });
+    $("#call-lock-nudge-text").hidden = true;
+  }
   $("#btn-back-to-board").addEventListener("click", () => {
     socket.emit("phase:advance", { phase: "investigation" });
   });
@@ -2011,9 +2107,40 @@
     verdict.textContent = state.result === "correct" ? "All four parts matched the evidence." : `The complete answer: ${solution}`;
     summary.appendChild(verdict);
 
+    const reconstruction = $("#ending-reconstruction");
+    reconstruction.innerHTML = "";
+    reveal.solutionEvidence.slice(0, 4).forEach((item, index) => {
+      const step = document.createElement("article");
+      step.className = "ending-reconstruction-step";
+      const number = document.createElement("span");
+      number.textContent = String(index + 1).padStart(2, "0");
+      const copy = document.createElement("div");
+      const title = document.createElement("h3");
+      title.textContent = item.title;
+      const explanation = document.createElement("p");
+      explanation.textContent = item.text;
+      const clues = document.createElement("small");
+      clues.textContent = item.clueIds.map((id) => `${id}: ${caseData.clueText[id].title}`).join(" · ");
+      copy.append(title, explanation, clues);
+      step.append(number, copy);
+      reconstruction.appendChild(step);
+    });
+
+    const contributions = $("#ending-contributions");
+    contributions.innerHTML = "";
+    Object.entries(reveal.solutionContributions || {}).forEach(([roleId, item]) => {
+      const card = document.createElement("article");
+      card.className = "ending-contribution-card";
+      card.innerHTML = `
+        <div class="role-portrait role-${roleId.toLowerCase()}" aria-hidden="true"></div>
+        <div><span>${caseData.roles[roleId].name}</span><h3>${item.title}</h3><p>${item.text}</p><small>${item.clueIds.join(" · ")}</small></div>
+      `;
+      contributions.appendChild(card);
+    });
+
     const grid = $("#ending-evidence-grid");
     grid.innerHTML = "";
-    reveal.solutionEvidence.forEach((item) => {
+    reveal.solutionEvidence.slice(4).forEach((item) => {
       const card = document.createElement("article");
       card.className = "ending-evidence-card";
       const title = document.createElement("h3");

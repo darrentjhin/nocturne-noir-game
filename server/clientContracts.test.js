@@ -19,7 +19,8 @@ test("the client gates accusations using the case threshold", () => {
   assert.match(appSource, /deductionsSolved\s*>=\s*caseData\.requiredDeductions/);
   assert.match(appSource, /confrontationsSolved\s*>=\s*caseData\.requiredConfrontations/);
   assert.match(appSource, /threadsSolved\s*>=\s*caseData\.requiredThreads/);
-  assert.match(appSource, /callButton\.disabled\s*=\s*!callUnlocked/);
+  assert.match(appSource, /callButton\.dataset\.locked\s*=\s*callUnlocked/);
+  assert.match(htmlSource, /id="call-lock-modal"/);
 });
 
 test("interrogation UI supports portraits, transcripts, locked lines, and records", () => {
@@ -51,8 +52,10 @@ test("invite, reconnect, tutorial, and ending recap paths remain present", () =>
   assert.match(appSource, /url\.searchParams\.set\("case", code\)/);
   assert.match(appSource, /socket\.on\("disconnect"/);
   assert.match(appSource, /You only get half the case/);
-  assert.match(appSource, /reveal\.solutionEvidence\.forEach/);
+  assert.match(appSource, /reveal\.solutionEvidence\.slice\(0, 4\)\.forEach/);
   assert.match(htmlSource, /id="ending-evidence-grid"/);
+  assert.match(htmlSource, /id="ending-reconstruction"/);
+  assert.match(htmlSource, /id="ending-contributions"/);
   assert.match(appSource, /sessionStorage\.setItem\(SESSION_KEY/);
   assert.match(appSource, /freshInviteTab/);
   assert.match(appSource, /TUTORIAL_SEEN_KEY.*myCode.*myRole/s);
@@ -96,6 +99,16 @@ test("the Radio Line composer remains compact and prominent in the investigation
   assert.match(htmlSource, /Live with partner/);
   assert.match(cssSource, /\.chat-form \.btn \{[^}]*width:\s*auto;[^}]*margin:\s*0;/s);
   assert.match(cssSource, /\.chat-log \{[^}]*max-height:\s*260px;/s);
+  assert.match(htmlSource, /class="radio-quick-actions"/);
+  assert.match(appSource, /radio-evidence-link/);
+});
+
+test("progressive guidance and lead states stay available without revealing answers", () => {
+  assert.match(htmlSource, /id="adaptive-hint"/);
+  assert.match(appSource, /function renderAdaptiveHint/);
+  assert.match(appSource, /lead-state-badge/);
+  assert.match(appSource, /function renderCallLock/);
+  assert.match(cssSource, /\.lead-state-badge/);
 });
 
 test("interview and ending answers arrive through earned room state", () => {

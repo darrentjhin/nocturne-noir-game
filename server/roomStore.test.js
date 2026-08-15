@@ -51,6 +51,8 @@ test("file persistence restores a resumable case without stale sockets", (t) => 
   assert.deepEqual(room.deductionsSolved, ["victor-cleared"]);
   assert.deepEqual(room.threadDrafts, { timeline: { claim: "B3" } });
   assert.deepEqual(room.threadsSolved, ["timeline"]);
+  assert.deepEqual(room.hintState, { threadFailures: 0 });
+  assert.equal(room.progressAt, now);
   assert.deepEqual(room.questionsAsked, ["victor-where", "victor-finance"]);
   assert.deepEqual(room.confrontationsSolved, ["dane-payments"]);
   assert.deepEqual(room.briefingReady, { A: false, B: false });

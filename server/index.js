@@ -26,6 +26,7 @@ const {
   clampBoardPosition,
   cleanPlayerName,
   deductionForLink,
+  evaluateThreadDraft,
   fieldModeMatches,
   isValidRole,
   ownsFoundClue,
@@ -84,6 +85,7 @@ function addClueToRoom(room, role, clueId) {
   if (!isValidRole(role) || !caseIndex.clues.has(clueId)) return false;
   if (room.found[role].includes(clueId)) return;
   room.found[role].push(clueId);
+  room.progressAt = Date.now();
   const totalFound = room.found.A.length + room.found.B.length;
   room.board.pins[clueId] = pinPositionForFoundCount(totalFound);
   const act1Found = room.found.A.filter((id) => /^A[1-6]$/.test(id)).length + room.found.B.filter((id) => /^B[1-6]$/.test(id)).length;
@@ -123,6 +125,8 @@ function freshRoom(code) {
     deductionsSolved: [],
     threadDrafts: {},
     threadsSolved: [],
+    hintState: { threadFailures: 0 },
+    progressAt: Date.now(),
     briefingReady: { A: false, B: false },
     callReady: { A: false, B: false },
     restartReady: { A: false, B: false },
@@ -157,6 +161,8 @@ function publicRoomState(room) {
     threadDrafts: room.threadDrafts,
     threadsSolved: room.threadsSolved,
     threadDetails: threadDetailsForRoom(caseData, room),
+    hintState: room.hintState,
+    progressAt: room.progressAt,
     briefingReady: room.briefingReady,
     callReady: room.callReady,
     restartReady: room.restartReady,
@@ -363,6 +369,7 @@ io.on("connection", (socket) => {
     if (approach === "rapport") interviewState.composure = Math.min(3, interviewState.composure + 1);
     room.interviewStates[personId] = interviewState;
     room.questionsAsked.push(questionId);
+    room.progressAt = Date.now();
     if (question.clueId) addClueToRoom(room, joinedRole, question.clueId);
     if (question.confrontationId && !room.confrontationsSolved.includes(question.confrontationId)) {
       room.confrontationsSolved.push(question.confrontationId);
@@ -398,6 +405,7 @@ io.on("connection", (socket) => {
     }
     room.board.links.push([a, b]);
     if (!room.deductionsSolved.includes(deduction.id)) room.deductionsSolved.push(deduction.id);
+    room.progressAt = Date.now();
     broadcast(room);
     cb && cb({ ok: true, deductionId: deduction.id });
   });
@@ -420,9 +428,21 @@ io.on("connection", (socket) => {
     if (room.threadsSolved.includes(threadId)) return cb && cb({ ok: true, alreadySolved: true });
     const draft = room.threadDrafts[threadId] || {};
     if (!threadSolutionMatches(threadId, draft)) {
-      return cb && cb({ ok: false, error: "That theory leaves a contradiction unresolved. Reconsider the role of each file." });
+      const evaluation = evaluateThreadDraft(threadId, draft);
+      room.hintState ||= { threadFailures: 0 };
+      room.hintState.threadFailures += 1;
+      broadcast(room);
+      return cb && cb({
+        ok: false,
+        soft: true,
+        evaluation,
+        error: evaluation
+          ? `${evaluation.matched}/${evaluation.total} roles hold. Reconsider “${evaluation.weakLabel}”; that file proves something else.`
+          : "That theory leaves a contradiction unresolved."
+      });
     }
     room.threadsSolved.push(threadId);
+    room.progressAt = Date.now();
     broadcast(room);
     cb && cb({ ok: true, threadId });
   });
@@ -487,6 +507,8 @@ io.on("connection", (socket) => {
     room.deductionsSolved = [];
     room.threadDrafts = {};
     room.threadsSolved = [];
+    room.hintState = { threadFailures: 0 };
+    room.progressAt = Date.now();
     room.briefingReady = { A: false, B: false };
     room.callReady = { A: false, B: false };
     room.restartReady = { A: false, B: false };

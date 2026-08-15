@@ -77,7 +77,8 @@ async function run() {
       Object.values(joinedStreet.case.clueText).some((clue) => clue.text) ||
       joinedStreet.case.deductions.some((deduction) => deduction.title || deduction.text || deduction.clueIds) ||
       joinedStreet.case.locations.flatMap((location) => location.hotspots).some((hotspot) => hotspot.result || hotspot.mode) ||
-      joinedStreet.case.investigationThreads.some((thread) => thread.result || thread.slots.some((slot) => slot.clueId))
+      joinedStreet.case.investigationThreads.some((thread) => thread.result || thread.slots.some((slot) => slot.clueId)) ||
+      joinedStreet.case.people.flatMap((person) => person.interrogation.questions).some((question) => question.tag || !question.topic)
     ) {
       throw new Error("join payload leaked a hidden answer");
     }
@@ -162,6 +163,31 @@ async function run() {
     await ask("dane", "dane-ivy");
     await ask("dane", "dane-note");
 
+    const timeline = caseData.investigationThreads.find((thread) => thread.id === "timeline");
+    const wrongTimeline = {
+      claim: timeline.slots.find((slot) => slot.id === "contradiction").clueId,
+      contradiction: timeline.slots.find((slot) => slot.id === "claim").clueId,
+      verification: timeline.slots.find((slot) => slot.id === "verification").clueId
+    };
+    latest = await stateAfter(
+      street,
+      (state) => Object.entries(wrongTimeline).every(([slotId, clueId]) => state.threadDrafts.timeline && state.threadDrafts.timeline[slotId] === clueId),
+      () => street.emit("thread:update", { threadId: "timeline", update: wrongTimeline }),
+      "incorrect timeline draft"
+    );
+    latest = await stateAfter(
+      street,
+      (state) => state.hintState && state.hintState.threadFailures === 1,
+      () => softAck(street, "thread:submit", { threadId: "timeline" }),
+      "first recoverable theory failure"
+    );
+    latest = await stateAfter(
+      street,
+      (state) => state.hintState && state.hintState.threadFailures === 2,
+      () => softAck(street, "thread:submit", { threadId: "timeline" }),
+      "adaptive theory guidance threshold"
+    );
+
     for (const thread of caseData.investigationThreads) {
       const update = Object.fromEntries(thread.slots.map((slot) => [slot.id, slot.clueId]));
       latest = await stateAfter(
@@ -221,7 +247,12 @@ async function run() {
       () => desk.emit("accusation:ready", { ready: true }),
       "ending"
     );
-    if (latest.result !== "correct" || !latest.endingReveal || latest.endingReveal.solution.suspect !== "ivy") {
+    if (
+      latest.result !== "correct" ||
+      !latest.endingReveal ||
+      latest.endingReveal.solution.suspect !== "ivy" ||
+      !latest.endingReveal.solutionContributions
+    ) {
       throw new Error("Correct ending reveal was not delivered");
     }
     await stateAfter(

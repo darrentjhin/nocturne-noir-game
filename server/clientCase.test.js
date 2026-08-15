@@ -15,6 +15,7 @@ test("the public case payload does not reveal answers or valid evidence pairs", 
   const clientCase = createClientCase(caseData);
   assert.equal(clientCase.solution, undefined);
   assert.equal(clientCase.solutionEvidence, undefined);
+  assert.equal(clientCase.solutionContributions, undefined);
   assert.equal(clientCase.endings, undefined);
   assert.equal(clientCase.puzzles.supplyCloset.code, undefined);
   assert.ok(clientCase.deductions.every((deduction) => deduction.clueIds === undefined));
@@ -28,6 +29,8 @@ test("the public case payload does not reveal answers or valid evidence pairs", 
     for (const question of person.interrogation.questions) {
       assert.equal(question.response, undefined);
       assert.equal(question.after, undefined);
+      assert.equal(question.tag, undefined);
+      assert.ok(question.topic);
     }
   }
 });
@@ -63,4 +66,5 @@ test("the solution reveal appears only after the ending is reached", () => {
   const reveal = endingRevealForRoom(caseData, { phase: "ending", result: "correct" });
   assert.equal(reveal.solution.suspect, "ivy");
   assert.equal(reveal.ending.title, caseData.endings.correct.title);
+  assert.deepEqual(reveal.solutionContributions, caseData.solutionContributions);
 });

@@ -30,7 +30,7 @@ If either player asks “what am I supposed to do?” before trying one of the v
 - Confirm Act 2 opens only after combined progress.
 - Confirm the locked supply closet cannot be bypassed without the partner's record.
 - Confirm a confrontation remains locked until both its earlier testimony and evidence prerequisites exist.
-- Submit one plausible but incorrect Case Thread arrangement. It should be rejected without consuming evidence or revealing the answer.
+- Submit one plausible but incorrect Case Thread arrangement. It should identify one weak role without consuming evidence or revealing the right clue. Repeat the mistake once and confirm an optional nudge appears.
 - Complete one Case Thread. Both players should see its conclusion.
 - Try one plausible but unsupported Evidence Board pair. It should be rejected without consuming evidence, then complete one valid suspect-elimination link.
 - Disconnect one device for 15 seconds, reconnect, and confirm it reclaims the same role and case state.

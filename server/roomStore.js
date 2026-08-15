@@ -35,6 +35,8 @@ function normalizeRoom(room, now, maxAgeMs) {
     deductionsSolved: Array.isArray(room.deductionsSolved) ? room.deductionsSolved : [],
     threadDrafts: room.threadDrafts && typeof room.threadDrafts === "object" ? room.threadDrafts : {},
     threadsSolved: Array.isArray(room.threadsSolved) ? room.threadsSolved : [],
+    hintState: { threadFailures: 0, ...(room.hintState || {}) },
+    progressAt: Number.isFinite(room.progressAt) ? room.progressAt : room.updatedAt,
     briefingReady: { A: false, B: false, ...(room.briefingReady || {}) },
     callReady: { A: false, B: false, ...(room.callReady || {}) },
     restartReady: { A: false, B: false, ...(room.restartReady || {}) },

@@ -14,6 +14,7 @@ const {
   cleanPlayerName,
   chooseRoleForJoin,
   deductionForLink,
+  evaluateThreadDraft,
   fieldModeMatches,
   pinPositionForFoundCount,
   sanitizeAccusationUpdate,
@@ -147,6 +148,18 @@ test("case threads accept only found evidence and require every slot to support 
   });
   assert.equal(threadSolutionMatches("timeline", { claim: "B3", contradiction: "A9", verification: "B4" }), true);
   assert.equal(threadSolutionMatches("timeline", { claim: "A9", contradiction: "B3", verification: "B4" }), false);
+  assert.deepEqual(evaluateThreadDraft("timeline", { claim: "B3", contradiction: "A9", verification: "B4" }), {
+    matched: 3,
+    total: 3,
+    weakSlotId: null,
+    weakLabel: null
+  });
+  assert.deepEqual(evaluateThreadDraft("timeline", { claim: "A9", contradiction: "B3", verification: "B4" }), {
+    matched: 1,
+    total: 3,
+    weakSlotId: "claim",
+    weakLabel: "The original claim"
+  });
 });
 
 test("every interrogation prerequisite references real case content", () => {
