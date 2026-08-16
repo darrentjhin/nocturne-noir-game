@@ -1,0 +1,22 @@
+const { defineConfig, devices } = require("@playwright/test");
+
+module.exports = defineConfig({
+  testDir: "./tests",
+  timeout: 30_000,
+  fullyParallel: false,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? "github" : "line",
+  use: {
+    baseURL: "http://127.0.0.1:4173",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure"
+  },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  webServer: {
+    command: "SEAT_RELEASE_MS=1000 npm start",
+    url: "http://127.0.0.1:4173/api/health",
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000
+  }
+});

@@ -9,14 +9,17 @@
     "dev": "node server/index.js",
     "smoke": "node scripts/socket-smoke.js",
     "smoke:case2": "node scripts/socket-smoke-case-two.js",
+    "feedback:summary": "node scripts/feedback-summary.js",
     "test": "node --test server/*.test.js",
-    "check": "node --check server/index.js && node --check server/clientCase.js && node --check server/gameLogic.js && node --check server/roomStore.js && node --check server/feedback.js && node --check server/caseData.js && node --check server/caseTwoData.js && node --check server/caseTwoLogic.js && node --check public/app.js && node --check public/case-two.js && node --check scripts/socket-smoke.js && node --check scripts/socket-smoke-case-two.js && npm test"
+    "test:e2e": "playwright test",
+    "check": "node --check server/index.js && node --check server/clientCase.js && node --check server/gameLogic.js && node --check server/roomStore.js && node --check server/feedback.js && node --check server/caseData.js && node --check server/caseTwoData.js && node --check server/caseTwoLogic.js && node --check public/app.js && node --check public/case-two.js && node --check scripts/socket-smoke.js && node --check scripts/socket-smoke-case-two.js && node --check scripts/feedback-summary.js && npm test"
   },
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "socket.io-client": "^4.8.3"
   }
 }

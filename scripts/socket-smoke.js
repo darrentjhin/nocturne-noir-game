@@ -3,6 +3,7 @@ const caseData = require("../server/caseData");
 const { approachForQuestion, caseIndex } = require("../server/gameLogic");
 
 const target = process.argv[2] || process.env.NOCTURNE_URL || "http://localhost:4173";
+const testFeedbackEndpoint = /^http:\/\/(localhost|127\.0\.0\.1)(:|\/)/.test(target);
 const timeoutMs = 5000;
 
 function connect() {
@@ -78,6 +79,7 @@ async function submitFeedback(caseId, role) {
 async function run() {
   let street = await connect();
   const desk = await connect();
+  let replacement = null;
   try {
     const created = await ack(street, "room:create", {});
     const joinedStreet = await ack(street, "room:join", { code: created.code, name: "Smoke Street" });
@@ -365,7 +367,7 @@ async function run() {
     ) {
       throw new Error("Correct ending reveal was not delivered");
     }
-    await submitFeedback("the-last-reel", "A");
+    if (testFeedbackEndpoint) await submitFeedback("the-last-reel", "A");
     await stateAfter(
       street,
       (state) => state.phase === "ending" && state.restartReady.A && !state.restartReady.B,
@@ -383,10 +385,39 @@ async function run() {
     }
     const resetStreetNotes = await ack(street, "notes:get", {});
     if (resetStreetNotes.text !== "") throw new Error("Restart did not clear the prior notebook");
+
+    if (testFeedbackEndpoint) {
+      latest = await stateAfter(
+        street,
+        (state) => state.players.B && !state.players.B.connected && state.players.B.releaseEligibleAt,
+        () => desk.disconnect(),
+        "abandoned Desk seat"
+      );
+      const releaseWait = Math.max(0, latest.players.B.releaseEligibleAt - Date.now() + 100);
+      if (releaseWait < timeoutMs) {
+        await new Promise((resolve) => setTimeout(resolve, releaseWait));
+        await stateAfter(
+          street,
+          (state) => !state.players.B,
+          () => ack(street, "room:seat:release", {}),
+          "abandoned Desk seat release"
+        );
+        replacement = await connect();
+        const replacementJoin = await ack(replacement, "room:join", { code: created.code, name: "Replacement Desk" });
+        if (replacementJoin.role !== "B") throw new Error("released Desk seat was not reusable");
+        await stateAfter(
+          street,
+          (state) => !state.players.B,
+          () => ack(replacement, "room:leave", {}),
+          "explicit replacement leave"
+        );
+      }
+    }
     console.log(`Socket smoke passed: ${created.code}, all four shared transitions required both detectives.`);
   } finally {
     street.disconnect();
     desk.disconnect();
+    if (replacement) replacement.disconnect();
   }
 }
 

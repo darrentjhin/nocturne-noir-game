@@ -48,6 +48,7 @@ test("file persistence restores a resumable case without stale sockets", (t) => 
   assert.equal(room.players.A.connected, false);
   assert.equal(room.players.A.socketId, null);
   assert.equal(room.players.A.resumeToken, "token-a");
+  assert.equal(room.players.A.releaseEligibleAt, now + 2 * 60 * 1000);
   assert.deepEqual(room.deductionsSolved, ["victor-cleared"]);
   assert.deepEqual(room.threadDrafts, { timeline: { claim: "B3" } });
   assert.deepEqual(room.threadsSolved, ["timeline"]);
@@ -108,6 +109,7 @@ test("file persistence restores a File 02 operation without private socket state
   assert.equal(restored.caseId, "black-sun-ledger");
   assert.equal(restored.players.A.connected, false);
   assert.equal(restored.players.A.socketId, null);
+  assert.equal(restored.players.A.releaseEligibleAt, now + 2 * 60 * 1000);
   assert.equal(restored.stageIndex, 2);
   assert.equal(restored.stageLocks.A, "blackout-room");
   assert.equal(restored.alertLevel, 1);

@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="NOCTURNE: The Last Reel — a cooperative online noir mystery for exactly two players on separate devices." />
+<meta name="theme-color" content="#0a0908" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="NOCTURNE — The Last Reel" />
+<meta property="og:description" content="Two detectives. Different evidence. One cooperative noir mystery." />
+<meta property="og:url" content="https://nocturne-noir-game-production.up.railway.app/" />
+<meta property="og:image" content="https://nocturne-noir-game-production.up.railway.app/assets/detective-roles.png" />
+<meta name="twitter:card" content="summary_large_image" />
 <title>NOCTURNE — A Two-Detective Case</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕵️</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,11 +20,17 @@
 </head>
 <body>
 
+<a class="skip-link" id="skip-link" href="#screen-landing">Skip to game</a>
+
 <div id="grain"></div>
 <div id="rain-overlay"></div>
 
 <button id="sound-toggle" class="sound-toggle" title="Toggle ambient rain" aria-label="Toggle ambient sound" aria-pressed="false">🔇</button>
 <div id="connection-banner" class="connection-banner" role="status" aria-live="polite"></div>
+<aside id="partner-recovery" class="partner-recovery" aria-live="polite" hidden>
+  <span id="partner-recovery-text"></span>
+  <button class="btn ghost small" id="btn-release-partner" type="button" disabled>Release abandoned seat</button>
+</aside>
 
 <!-- SCREEN: Landing -->
 <section id="screen-landing" class="screen active">
@@ -26,6 +40,7 @@
     <p class="subtitle">a two-detective case</p>
     <div class="tagline">The city doesn't give up the truth to just one of you.</div>
     <div class="cover-player-count">A case for 2 players</div>
+    <p class="content-note">Contains themes of disappearance, criminal coercion, corruption, and threatened violence.</p>
     <nav class="case-shelf" aria-label="NOCTURNE case files">
       <span class="case-file active"><small>FILE 01</small><strong>The Last Reel</strong><em>Investigation · 50–70 min</em></span>
       <a class="case-file" href="/case-two.html"><small>FILE 02 · CONTINUATION</small><strong>The Black-Sun Ledger</strong><em>Live infiltration · 35–50 min</em></a>
@@ -64,6 +79,7 @@
 
       <div id="landing-error" class="error-msg"></div>
     </div>
+    <footer class="landing-footer"><a href="/help.html">Help & reconnecting</a><a href="/privacy.html">Privacy</a></footer>
   </div>
 </section>
 
@@ -74,13 +90,15 @@
     <p class="subtitle">share this code with your partner</p>
     <div class="case-code" id="lobby-code">-----</div>
     <button class="btn ghost" id="btn-copy-invite">Copy Invite Link</button>
+    <button class="btn ghost" id="btn-copy-resume">Copy My Private Resume Link</button>
     <div id="lobby-invite-status" class="copy-status" role="status" aria-live="polite"></div>
     <div class="lobby-players">
       <div class="lobby-slot" id="lobby-slot-A">Detective A — waiting...</div>
       <div class="lobby-slot" id="lobby-slot-B">Detective B — waiting...</div>
     </div>
+    <p class="retention-note" id="room-retention">Closing this tab keeps your seat reserved for reconnecting. Use Leave only when another player should take your place.</p>
     <p class="hint">The briefing opens once you're both in. The investigation waits for both detectives to ready up.</p>
-    <p class="hint"><a href="#" class="leave-case">Not your case? Leave</a></p>
+    <p class="hint"><a href="#" class="leave-case">Release my seat and leave</a></p>
   </div>
 </section>
 
@@ -92,6 +110,11 @@
     <p class="subtitle" id="briefing-headline"></p>
     <div class="briefing-body" id="briefing-body"></div>
     <div class="role-callout" id="role-callout"></div>
+    <ul class="preflight-checklist" aria-label="Before beginning">
+      <li>Keep this screen private—your partner receives different evidence.</li>
+      <li>Use the Radio Line or voice to exchange exact names, times, IDs, and codes.</li>
+      <li>Allow 50–70 minutes; closing the tab safely reserves your role for reconnecting.</li>
+    </ul>
     <div class="team-ready-panel" aria-labelledby="briefing-ready-title">
       <fieldset class="difficulty-panel">
         <legend>CHOOSE DIFFICULTY TOGETHER</legend>
@@ -122,7 +145,7 @@
       <button class="btn ghost small" id="btn-open-files">Case Files</button>
       <button class="btn ghost small open-notebook" id="btn-header-notes" type="button">My Notes</button>
       <button class="btn ghost small" id="btn-goto-accuse">Make the Call</button>
-      <a href="#" class="leave-case" title="Leave this case">Leave</a>
+      <a href="#" class="leave-case" title="Release your detective seat and leave this case">Release Seat</a>
     </div>
   </header>
 
@@ -487,6 +510,28 @@
     </div>
   </div>
 </section>
+
+<div id="exit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="exit-title">
+  <div class="modal-card exit-card">
+    <button class="modal-x" id="exit-cancel-x" type="button" aria-label="Stay in case">&times;</button>
+    <div class="modal-kicker">RELEASE DETECTIVE SEAT</div>
+    <h3 id="exit-title">Why are you leaving?</h3>
+    <p>Optional anonymous category only. Closing the tab instead will preserve your seat for reconnecting.</p>
+    <label for="exit-reason">Reason</label>
+    <select id="exit-reason">
+      <option value="returning-later">Returning later</option>
+      <option value="partner-left">Partner left</option>
+      <option value="instructions-unclear">Instructions unclear</option>
+      <option value="too-difficult">Too difficult</option>
+      <option value="too-long">Session is too long</option>
+      <option value="technical-issue">Technical issue</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn ghost" id="exit-cancel" type="button">Stay in Case</button>
+      <button class="btn primary" id="exit-confirm" type="button">Release Seat & Leave</button>
+    </div>
+  </div>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="icons.js"></script>

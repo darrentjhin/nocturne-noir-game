@@ -1,0 +1,28 @@
+name: Production health
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nocturne-production-health
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify live health and both case surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://nocturne-noir-game-production.up.railway.app"
+          health="$(curl --fail --silent --show-error --retry 3 --retry-all-errors "$base/api/health")"
+          node -e 'const value=JSON.parse(process.argv[1]); if (!value.ok || !value.release) process.exit(1)' "$health"
+          curl --fail --silent --show-error --retry 3 --retry-all-errors "$base/" >/dev/null
+          curl --fail --silent --show-error --retry 3 --retry-all-errors "$base/case-two.html" >/dev/null

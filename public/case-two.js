@@ -19,10 +19,17 @@
   let notebookDraft = "";
   let notebookSaveTimer = null;
   let notebookLoadId = 0;
+  let radioInitialized = false;
+  let lastRadioCount = 0;
+  let unreadRadioCount = 0;
+  const BASE_TITLE = document.title;
   const finalDraft = {};
 
   function showScreen(id) {
     $$(".screen").forEach((screen) => screen.classList.toggle("active", screen.id === id));
+    const active = $("#" + id);
+    active.setAttribute("tabindex", "-1");
+    $("#skip-link").setAttribute("href", `#${id}`);
     window.scrollTo(0, 0);
   }
 
@@ -60,6 +67,20 @@
     } catch (error) {}
   }
 
+  (function importPrivateResumeLink() {
+    const url = new URL(window.location.href);
+    const code = (url.searchParams.get("case") || "").toUpperCase().trim();
+    const role = url.searchParams.get("role") || "";
+    const resumeToken = url.searchParams.get("resume") || "";
+    const name = url.searchParams.get("name") || "Detective";
+    if (!/^[A-HJ-NP-Z2-9]{5}$/.test(code) || !["A", "B"].includes(role) || resumeToken.length < 20) return;
+    saveSession({ code, role, name: name.slice(0, 24), resumeToken });
+    url.searchParams.delete("role");
+    url.searchParams.delete("resume");
+    url.searchParams.delete("name");
+    window.history.replaceState({}, "", url);
+  })();
+
   function showLandingError(message) {
     $("#landing-error").textContent = message || "";
   }
@@ -91,6 +112,10 @@
     selectedStageChoice = null;
     selectedStageId = null;
     tutorialOpenedForRoom = false;
+    radioInitialized = false;
+    lastRadioCount = 0;
+    unreadRadioCount = 0;
+    document.title = BASE_TITLE;
     notebookDraft = "";
     if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
     notebookSaveTimer = null;
@@ -159,11 +184,89 @@
     }
   });
 
-  $$(".leave-operation").forEach((button) => button.addEventListener("click", () => {
+  $("#btn-copy-resume").addEventListener("click", async () => {
+    const saved = savedSession();
+    if (!saved || !saved.resumeToken) return;
+    const url = new URL("/case-two.html", window.location.origin);
+    url.searchParams.set("case", saved.code);
+    url.searchParams.set("role", saved.role);
+    url.searchParams.set("name", saved.name || "Detective");
+    url.searchParams.set("resume", saved.resumeToken);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      $("#copy-status").textContent = "Private resume link copied. Do not send it to your partner.";
+    } catch (error) {
+      $("#copy-status").textContent = `Keep this private: ${url}`;
+    }
+  });
+
+  function closeExitModal() {
+    $("#exit-modal").hidden = true;
+  }
+
+  function releaseSeatAndLeave() {
     flushNotebookSave();
-    clearSession();
-    window.location.assign("/case-two.html");
+    fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({ kind: "exit", caseId: CASE_ID, role: myRole, reason: $("#exit-reason").value })
+    }).catch(() => {});
+    const finish = () => {
+      clearSession();
+      window.location.assign("/case-two.html");
+    };
+    let completed = false;
+    socket.emit("room:leave", {}, () => {
+      if (completed) return;
+      completed = true;
+      finish();
+    });
+    window.setTimeout(() => {
+      if (completed) return;
+      completed = true;
+      finish();
+    }, 800);
+  }
+
+  $$(".leave-operation").forEach((button) => button.addEventListener("click", () => {
+    $("#exit-modal").hidden = false;
+    $("#exit-reason").focus();
   }));
+  $("#exit-cancel").addEventListener("click", closeExitModal);
+  $("#exit-cancel-x").addEventListener("click", closeExitModal);
+  $("#exit-confirm").addEventListener("click", releaseSeatAndLeave);
+
+  function renderPartnerRecovery(state) {
+    const partnerRole = myRole === "A" ? "B" : "A";
+    const partner = state && state.players && state.players[partnerRole];
+    const panel = $("#partner-recovery");
+    if (!partner || partner.connected) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    const remaining = Math.max(0, Number(partner.releaseEligibleAt || 0) - Date.now());
+    const button = $("#btn-release-partner");
+    button.disabled = remaining > 0;
+    if (remaining > 0) {
+      const seconds = Math.ceil(remaining / 1000);
+      $("#partner-recovery-text").textContent = `${partner.name} disconnected. Their private line is reserved for ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}.`;
+    } else {
+      $("#partner-recovery-text").textContent = `${partner.name} did not reconnect. You may release that line and invite a replacement.`;
+    }
+  }
+
+  $("#btn-release-partner").addEventListener("click", () => {
+    if (!window.confirm("Release the disconnected detective line? Their private notes and resume token will be cleared.")) return;
+    socket.emit("room:seat:release", {}, (response) => {
+      if (!response || !response.ok) setConnection((response && response.error) || "The line could not be released.");
+    });
+  });
+
+  window.setInterval(() => {
+    if (latestState) renderPartnerRecovery(latestState);
+  }, 1000);
 
   function updateNotebookMeta(status, tone) {
     $("#notebook-count").textContent = `${notebookDraft.length} / 6000`;
@@ -416,6 +519,17 @@
   }
 
   function renderRadio(state) {
+    if (!radioInitialized) {
+      radioInitialized = true;
+      lastRadioCount = state.chat.length;
+    } else if (state.chat.length > lastRadioCount) {
+      const newMessages = state.chat.slice(lastRadioCount).filter((message) => message.role !== myRole);
+      if (document.hidden && newMessages.length) {
+        unreadRadioCount += newMessages.length;
+        document.title = `(${unreadRadioCount}) Radio · ${BASE_TITLE}`;
+      }
+      lastRadioCount = state.chat.length;
+    }
     const log = $("#radio-log");
     const wasNearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 50;
     log.innerHTML = "";
@@ -687,6 +801,12 @@
   function renderState(state) {
     latestState = state;
     if (!caseData || state.caseId !== CASE_ID) return;
+    renderPartnerRecovery(state);
+    const retention = $("#room-retention");
+    if (retention && state.roomRetentionMinutes) {
+      const duration = state.roomRetentionMinutes >= 60 ? `${Math.round(state.roomRetentionMinutes / 60)} hours` : `${state.roomRetentionMinutes} minutes`;
+      retention.textContent = `Closing this tab preserves your private seat and progress for up to ${duration}. Release it only if another player should replace you.`;
+    }
     if (state.phase === "lobby") renderLobby(state);
     if (state.phase === "briefing") renderBriefing(state);
     if (state.phase === "operation") renderOperation(state);
@@ -695,6 +815,13 @@
   }
 
   socket.on("room:state", renderState);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      unreadRadioCount = 0;
+      document.title = BASE_TITLE;
+    }
+  });
 
   function renderTutorial() {
     const step = caseData ? caseData.tutorial[tutorialIndex] : null;

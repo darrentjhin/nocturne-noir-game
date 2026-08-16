@@ -48,6 +48,7 @@
   let notebookDraft = "";
   let notebookSaveTimer = null;
   let notebookLoadId = 0;
+  const BASE_TITLE = document.title;
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -126,7 +127,10 @@
 
   function showScreen(id) {
     $$(".screen").forEach((s) => s.classList.remove("active"));
-    $("#" + id).classList.add("active");
+    const active = $("#" + id);
+    active.classList.add("active");
+    active.setAttribute("tabindex", "-1");
+    $("#skip-link").setAttribute("href", `#${id}`);
   }
 
   // ---------- Tutorial ----------
@@ -255,6 +259,20 @@
     } catch (e) {}
   }
 
+  (function importPrivateResumeLink() {
+    const url = new URL(window.location.href);
+    const code = (url.searchParams.get("case") || "").toUpperCase().trim();
+    const role = url.searchParams.get("role") || "";
+    const resumeToken = url.searchParams.get("resume") || "";
+    const name = url.searchParams.get("name") || "Detective";
+    if (!/^[A-HJ-NP-Z2-9]{5}$/.test(code) || !["A", "B"].includes(role) || resumeToken.length < 20) return;
+    saveSession(code, role, name.slice(0, 24), resumeToken);
+    url.searchParams.delete("role");
+    url.searchParams.delete("resume");
+    url.searchParams.delete("name");
+    window.history.replaceState({}, "", url);
+  })();
+
   // ---------- Landing tabs ----------
   function activateLandingTab(name) {
     $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
@@ -362,6 +380,23 @@
     }
   });
 
+  $("#btn-copy-resume").addEventListener("click", async () => {
+    const saved = loadSession();
+    if (!saved || !saved.resumeToken) return;
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set("case", saved.code);
+    url.searchParams.set("role", saved.role);
+    url.searchParams.set("name", saved.name || "Detective");
+    url.searchParams.set("resume", saved.resumeToken);
+    const status = $("#lobby-invite-status");
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      status.textContent = "Private resume link copied. Do not send it to your partner.";
+    } catch (error) {
+      status.textContent = `Keep this private: ${url}`;
+    }
+  });
+
   function setConnectionBanner(message, tone) {
     const banner = $("#connection-banner");
     banner.textContent = message || "";
@@ -419,17 +454,77 @@
   const freshInviteTab = /^[A-HJ-NP-Z2-9]{5}$/.test(invitedCodeOnLoad) && !loadTabSession();
   if (!freshInviteTab) tryResume();
 
-  $$(".leave-case").forEach((el) =>
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
+  function closeExitModal() {
+    $("#exit-modal").classList.remove("active");
+  }
+
+  function releaseSeatAndLeave() {
+    fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({ kind: "exit", caseId: "the-last-reel", role: myRole, reason: $("#exit-reason").value })
+    }).catch(() => {});
+    const finish = () => {
       clearSession();
       const cleanUrl = new URL(window.location.href);
       cleanUrl.search = "";
       cleanUrl.hash = "";
       window.history.replaceState({}, "", cleanUrl);
       window.location.reload();
-    })
-  );
+    };
+    let completed = false;
+    socket.emit("room:leave", {}, () => {
+      if (completed) return;
+      completed = true;
+      finish();
+    });
+    window.setTimeout(() => {
+      if (completed) return;
+      completed = true;
+      finish();
+    }, 800);
+  }
+
+  $$(".leave-case").forEach((el) => el.addEventListener("click", (event) => {
+    event.preventDefault();
+    $("#exit-modal").classList.add("active");
+    $("#exit-reason").focus();
+  }));
+  $("#exit-cancel").addEventListener("click", closeExitModal);
+  $("#exit-cancel-x").addEventListener("click", closeExitModal);
+  $("#exit-confirm").addEventListener("click", releaseSeatAndLeave);
+
+  function renderPartnerRecovery(state) {
+    const partnerRole = myRole === "A" ? "B" : "A";
+    const partner = state && state.players && state.players[partnerRole];
+    const panel = $("#partner-recovery");
+    if (!partner || partner.connected) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    const remaining = Math.max(0, Number(partner.releaseEligibleAt || 0) - Date.now());
+    const button = $("#btn-release-partner");
+    button.disabled = remaining > 0;
+    if (remaining > 0) {
+      const seconds = Math.ceil(remaining / 1000);
+      $("#partner-recovery-text").textContent = `${partner.name} disconnected. Their private seat is reserved for ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}.`;
+    } else {
+      $("#partner-recovery-text").textContent = `${partner.name} did not reconnect. You may release that seat and invite a replacement.`;
+    }
+  }
+
+  $("#btn-release-partner").addEventListener("click", () => {
+    if (!window.confirm("Release the disconnected detective seat? Their private notes and resume token will be cleared.")) return;
+    socket.emit("room:seat:release", {}, (response) => {
+      if (!response || !response.ok) setConnectionBanner((response && response.error) || "The seat could not be released.");
+    });
+  });
+
+  window.setInterval(() => {
+    if (latestState) renderPartnerRecovery(latestState);
+  }, 1000);
 
   // ---------- State rendering ----------
   socket.on("room:state", (state) => {
@@ -438,6 +533,12 @@
     // than the one we're actually looking at.
     if (myCode && state.code !== myCode) return;
     latestState = state;
+    renderPartnerRecovery(state);
+    const retention = $("#room-retention");
+    if (retention && state.roomRetentionMinutes) {
+      const duration = state.roomRetentionMinutes >= 60 ? `${Math.round(state.roomRetentionMinutes / 60)} hours` : `${state.roomRetentionMinutes} minutes`;
+      retention.textContent = `Closing this tab keeps your seat and progress for up to ${duration}. Use Release Seat only when another player should take your place.`;
+    }
     render(state);
   });
 
@@ -2265,7 +2366,12 @@
     alert.textContent = `RADIO · ${latest.name}: ${excerpt}`;
     alert.hidden = false;
     alert.dataset.unreadCount = String(Number(alert.dataset.unreadCount || 0) + newPartnerMessages.length);
+    if (document.hidden) document.title = `(${alert.dataset.unreadCount}) Radio · ${BASE_TITLE}`;
   }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) document.title = BASE_TITLE;
+  });
 
   function renderChat(state) {
     notifyPartnerMessages(state);

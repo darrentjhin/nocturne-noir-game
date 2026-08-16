@@ -19,6 +19,8 @@ A filmmaker vanishes before her premiere. The Street reconstructs physical scene
 
 Additional systems include three unanimous difficulty modes, searchable Case Files, lead states, adaptive nudges, private opening hunches, a private autosaving detective notebook, one-click Radio-to-Notes capture, a joint ending debrief, reconnect support, and mutual readiness for every major transition. Final-call readiness is cleared on disconnect and cannot be restored until both detectives are back on the line.
 
+Private resume links can transfer a detective role to another device. An abandoned disconnected seat remains protected for two minutes before the partner may release it for a replacement. Explicitly leaving releases the role and clears that detective's private notebook and resume token.
+
 ## File 02 — The Black-Sun Ledger
 
 **Type:** live asymmetric infiltration · **Length:** roughly 35–50 minutes
@@ -66,7 +68,11 @@ The File 01 smoke completes every clue, interview prerequisite, contradiction, t
 
 GitHub Actions runs the same locked install, checks, production dependency audit, health probe, and both complete two-player smoke paths on every pull request and every push to `main`. Railway uses `railway.json` for its start command, health gate, graceful overlap/draining window, and restart policy.
 
+The release workflow also runs real two-browser onboarding and responsive-layout tests. A separate scheduled workflow probes production health and both public case surfaces every 15 minutes.
+
 See `PLAYTEST.md` for the human two-device QA pass.
+
+See `OPERATIONS.md` for the Railway release gate, volume, rollback, backup, monitoring, and scaling rules; `ASSET_REGISTER.md` for commercial-rights verification; and `PRODUCT.md` for the controlled-beta criteria.
 
 ## Optional durable rooms
 

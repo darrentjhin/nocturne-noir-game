@@ -34,7 +34,7 @@ test("interrogation UI supports portraits, transcripts, locked lines, and record
   assert.match(appSource, /socket\.emit\("interview:ask"/);
   assert.match(appSource, /evidenceId/);
   assert.match(appSource, /sourceRequirementsMet/);
-  assert.match(cssSource, /assets\/interrogation-portraits\.png/);
+  assert.match(cssSource, /assets\/interrogation-portraits\.webp/);
 });
 
 test("investigation strategy includes shared case threads and selectable field focus", () => {
@@ -96,8 +96,8 @@ test("the cover introduces both detective roles with original portrait art", () 
   assert.match(htmlSource, /class="detective-preview"/);
   assert.match(htmlSource, /The Street/);
   assert.match(htmlSource, /The Desk/);
-  assert.match(cssSource, /assets\/detective-roles\.png/);
-  assert.ok(fs.existsSync(path.join(projectRoot, "public", "assets", "detective-roles.png")));
+  assert.match(cssSource, /assets\/detective-roles\.webp/);
+  assert.ok(fs.existsSync(path.join(projectRoot, "public", "assets", "detective-roles.webp")));
 });
 
 test("interactive cards expose button semantics", () => {
@@ -114,7 +114,7 @@ test("board dragging uses card-scoped pointer events without leaked window liste
 });
 
 test("fieldwork, case-file sharing, and board guidance remain available", () => {
-  assert.match(cssSource, /assets\/location-atlas\.png/);
+  assert.match(cssSource, /assets\/location-atlas\.webp/);
   assert.match(htmlSource, /id="scene-image"/);
   assert.match(htmlSource, /id="objective-list"/);
   assert.match(htmlSource, /id="files-search"/);
@@ -164,4 +164,21 @@ test("shared transitions and radio notifications are explicit in the client", ()
   assert.match(appSource, /socket\.emit\("restart:ready"/);
   assert.match(appSource, /function notifyPartnerMessages/);
   assert.doesNotMatch(appSource, /socket\.emit\("room:restart"/);
+});
+
+test("release UX preserves reconnectability without trapping an abandoned seat", () => {
+  assert.match(htmlSource, /id="btn-copy-resume"/);
+  assert.match(htmlSource, /id="partner-recovery"/);
+  assert.match(htmlSource, /id="exit-modal"/);
+  assert.match(appSource, /socket\.emit\("room:leave"/);
+  assert.match(appSource, /socket\.emit\("room:seat:release"/);
+  assert.match(serverSource, /socket\.on\("room:leave"/);
+  assert.match(serverSource, /socket\.on\("room:seat:release"/);
+});
+
+test("the public shell keeps zoom, keyboard navigation, and support pages available", () => {
+  assert.doesNotMatch(htmlSource, /maximum-scale/);
+  assert.match(htmlSource, /class="skip-link"/);
+  assert.ok(fs.existsSync(path.join(projectRoot, "public", "help.html")));
+  assert.ok(fs.existsSync(path.join(projectRoot, "public", "privacy.html")));
 });

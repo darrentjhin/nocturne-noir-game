@@ -154,8 +154,8 @@ function publicCaseTwoRoomState(room) {
     caseId: room.caseId,
     phase: room.phase,
     players: {
-      A: room.players.A ? { name: room.players.A.name, connected: room.players.A.connected } : null,
-      B: room.players.B ? { name: room.players.B.name, connected: room.players.B.connected } : null
+      A: room.players.A ? { name: room.players.A.name, connected: room.players.A.connected, releaseEligibleAt: room.players.A.releaseEligibleAt || null } : null,
+      B: room.players.B ? { name: room.players.B.name, connected: room.players.B.connected, releaseEligibleAt: room.players.B.releaseEligibleAt || null } : null
     },
     difficultyVotes: room.difficultyVotes,
     difficulty: room.difficulty,

@@ -2,6 +2,7 @@ const { io } = require("socket.io-client");
 const caseTwoData = require("../server/caseTwoData");
 
 const target = process.argv[2] || process.env.NOCTURNE_URL || "http://localhost:4173";
+const testFeedbackEndpoint = /^http:\/\/(localhost|127\.0\.0\.1)(:|\/)/.test(target);
 const timeoutMs = 7000;
 
 function connect() {
@@ -247,7 +248,7 @@ async function run() {
     if (!latest.endingReveal || latest.endingReveal.decisionReview.length !== 6 || !latest.endingReveal.nextHook) {
       throw new Error("File 02 ending reveal is incomplete");
     }
-    await submitFeedback(caseTwoData.id, "B");
+    if (testFeedbackEndpoint) await submitFeedback(caseTwoData.id, "B");
 
     await stateAfter(
       street,

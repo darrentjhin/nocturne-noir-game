@@ -60,15 +60,30 @@ const { sanitizeFeedback } = require("./feedback");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  maxHttpBufferSize: 16 * 1024,
+  allowRequest(req, callback) {
+    const origin = req.headers.origin;
+    if (!origin) return callback(null, true);
+    try {
+      callback(null, new URL(origin).host === req.headers.host);
+    } catch (error) {
+      callback(null, false);
+    }
+  }
+});
 
 const PORT = process.env.PORT || 4173;
-const roomStore = createRoomStore(process.env.ROOM_STORE_PATH);
+const MAX_ACTIVE_ROOMS = Math.max(10, Number(process.env.MAX_ACTIVE_ROOMS) || 1000);
+const DISCONNECTED_SEAT_RELEASE_MS = Math.max(1000, Number(process.env.SEAT_RELEASE_MS) || 2 * 60 * 1000);
+const roomStore = createRoomStore(process.env.ROOM_STORE_PATH, { seatReleaseMs: DISCONNECTED_SEAT_RELEASE_MS });
 const rooms = roomStore.load();
+const roomRetentionMs = roomStore.mode === "file" ? 24 * 60 * 60 * 1000 : 30 * 60 * 1000;
 const serviceStartedAt = Date.now();
 const releaseId = String(process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || "local").slice(0, 40);
 const feedbackStorePath = process.env.FEEDBACK_STORE_PATH || (roomStore.path ? path.join(path.dirname(roomStore.path), "nocturne-feedback.jsonl") : null);
 const feedbackWindows = new Map();
+const globalEventWindows = new Map();
 let feedbackCount = 0;
 let shuttingDown = false;
 const clientCaseData = createClientCase(caseData);
@@ -102,11 +117,58 @@ app.get("/api/health", (req, res) => {
     release: releaseId,
     uptimeSeconds: Math.floor((Date.now() - serviceStartedAt) / 1000),
     rooms: rooms.size,
+    maxRooms: MAX_ACTIVE_ROOMS,
     persistence: roomStore.mode,
+    roomRetentionMinutes: Math.floor(roomRetentionMs / 60_000),
     feedbackStorage: feedbackStorePath ? "file" : "log",
     feedbackCount
   });
 });
+
+function remoteKey(socket) {
+  const forwarded = socket.handshake && socket.handshake.headers && socket.handshake.headers["x-forwarded-for"];
+  return String(Array.isArray(forwarded) ? forwarded[0] : forwarded || socket.handshake.address || "unknown").split(",")[0].trim();
+}
+
+function allowGlobalEvent(socket, event, limit, windowMs) {
+  const now = Date.now();
+  const key = `${remoteKey(socket)}:${event}`;
+  const recent = (globalEventWindows.get(key) || []).filter((timestamp) => now - timestamp < windowMs);
+  if (recent.length >= limit) {
+    globalEventWindows.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  if (!globalEventWindows.has(key) && globalEventWindows.size >= 10_000) globalEventWindows.delete(globalEventWindows.keys().next().value);
+  globalEventWindows.set(key, recent);
+  return true;
+}
+
+function roomHasConnectedPlayer(room) {
+  return !!(room && room.players && ((room.players.A && room.players.A.connected) || (room.players.B && room.players.B.connected)));
+}
+
+function pruneExpiredRooms(now = Date.now()) {
+  let removed = 0;
+  for (const [code, room] of rooms) {
+    if (!roomHasConnectedPlayer(room) && now - Number(room.updatedAt || 0) > roomRetentionMs) {
+      rooms.delete(code);
+      removed += 1;
+    }
+  }
+  if (removed) roomStore.scheduleSave(rooms);
+  return removed;
+}
+
+pruneExpiredRooms();
+const cleanupTimer = setInterval(() => {
+  pruneExpiredRooms();
+  const now = Date.now();
+  for (const [key, timestamps] of globalEventWindows) {
+    if (!timestamps.some((timestamp) => now - timestamp < 60 * 60 * 1000)) globalEventWindows.delete(key);
+  }
+}, 15 * 60 * 1000);
+if (cleanupTimer.unref) cleanupTimer.unref();
 
 app.post("/api/feedback", express.json({ limit: "4kb" }), (req, res) => {
   const origin = req.get("origin");
@@ -240,14 +302,22 @@ function isCaseTwoRoom(room) {
 }
 
 function publicRoomState(room) {
-  if (isCaseTwoRoom(room)) return publicCaseTwoRoomState(room);
+  if (isCaseTwoRoom(room)) {
+    return {
+      ...publicCaseTwoRoomState(room),
+      serverTime: Date.now(),
+      roomRetentionMinutes: Math.floor(roomRetentionMs / 60_000)
+    };
+  }
   return {
     code: room.code,
     phase: room.phase,
     players: {
-      A: room.players.A ? { name: room.players.A.name, connected: room.players.A.connected } : null,
-      B: room.players.B ? { name: room.players.B.name, connected: room.players.B.connected } : null
+      A: room.players.A ? { name: room.players.A.name, connected: room.players.A.connected, releaseEligibleAt: room.players.A.releaseEligibleAt || null } : null,
+      B: room.players.B ? { name: room.players.B.name, connected: room.players.B.connected, releaseEligibleAt: room.players.B.releaseEligibleAt || null } : null
     },
+    serverTime: Date.now(),
+    roomRetentionMinutes: Math.floor(roomRetentionMs / 60_000),
     found: room.found,
     evidenceDetails: evidenceDetailsForRoom(caseData, room),
     fieldResults: fieldResultsForRoom(caseData, room),
@@ -310,7 +380,10 @@ io.on("connection", (socket) => {
   }
 
   socket.on("room:create", (payload = {}, cb) => {
+    if (!allowGlobalEvent(socket, "room:create", 10, 60 * 60 * 1000)) return cb && cb({ ok: false, error: "Too many cases were opened from this connection. Try again later." });
     if (!allowEvent("room:create", 5, 60_000)) return cb && cb({ ok: false, error: "Too many new cases. Wait a moment." });
+    pruneExpiredRooms();
+    if (rooms.size >= MAX_ACTIVE_ROOMS) return cb && cb({ ok: false, error: "All case lines are currently occupied. Try again shortly." });
     const code = makeRoomCode();
     const requestedCaseId = payload.caseId === caseTwoData.id ? caseTwoData.id : caseData.id;
     const room = requestedCaseId === caseTwoData.id ? freshCaseTwoRoom(code) : freshRoom(code);
@@ -320,6 +393,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("room:join", (payload = {}, cb) => {
+    if (!allowGlobalEvent(socket, "room:join", 60, 60 * 60 * 1000)) return cb && cb({ ok: false, error: "Too many join attempts. Wait before trying another code." });
     let { code, role, name, resumeToken, expectedCaseId } = payload || {};
     code = typeof code === "string" ? code.toUpperCase().trim() : "";
     const room = rooms.get(code);
@@ -357,7 +431,7 @@ io.on("connection", (socket) => {
 
     const playerName = cleanPlayerName(name, takeRole);
     const roleToken = selection.reclaim && requestedPlayer.resumeToken ? requestedPlayer.resumeToken : makeResumeToken();
-    room.players[takeRole] = { socketId: socket.id, name: playerName, connected: true, resumeToken: roleToken };
+    room.players[takeRole] = { socketId: socket.id, name: playerName, connected: true, resumeToken: roleToken, disconnectedAt: null, releaseEligibleAt: null };
     socket.join(code);
     joinedCode = code;
     joinedRole = takeRole;
@@ -369,6 +443,63 @@ io.on("connection", (socket) => {
     const joinedCase = isCaseTwoRoom(room) ? createClientCaseTwo(caseTwoData, takeRole) : createClientCase(caseData, takeRole);
     cb && cb({ ok: true, code, caseId: roomCaseId, role: takeRole, name: room.players[takeRole].name, resumeToken: roleToken, case: joinedCase });
     broadcast(room);
+  });
+
+  function clearRoleReadiness(room, role) {
+    if (!room || !role) return;
+    if (room.briefingReady) room.briefingReady[role] = false;
+    if (room.callReady) room.callReady[role] = false;
+    if (room.restartReady) room.restartReady[role] = false;
+    if (room.stageAcknowledged) room.stageAcknowledged[role] = false;
+    if (room.finalLocked) room.finalLocked[role] = false;
+    if (room.accusationDraft) room.accusationDraft[role === "A" ? "readyA" : "readyB"] = false;
+  }
+
+  function releaseRole(room, role) {
+    if (!room || !role || !room.players[role]) return false;
+    clearRoleReadiness(room, role);
+    if (room.stageLocks) room.stageLocks[role] = null;
+    if (room.finalDrafts) room.finalDrafts[role] = null;
+    if (room.operation && room.operation.submissions) room.operation.submissions[role] = false;
+    room.players[role] = null;
+    if (room.notes) room.notes[role] = "";
+    if (room.hunches) room.hunches[role] = null;
+    if (room.phase === "lobby" || room.phase === "briefing") {
+      room.phase = room.players.A && room.players.B ? "briefing" : "lobby";
+      room.difficulty = null;
+      room.difficultyVotes = { A: null, B: null };
+      room.briefingReady = { A: false, B: false };
+    }
+    return true;
+  }
+
+  socket.on("room:leave", (payload = {}, cb) => {
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole || !room.players[joinedRole] || room.players[joinedRole].socketId !== socket.id) {
+      return cb && cb({ ok: false, error: "No occupied detective seat was found." });
+    }
+    const code = joinedCode;
+    const role = joinedRole;
+    socket.leave(code);
+    joinedCode = null;
+    joinedRole = null;
+    releaseRole(room, role);
+    broadcast(room);
+    cb && cb({ ok: true });
+  });
+
+  socket.on("room:seat:release", (payload = {}, cb) => {
+    const room = rooms.get(joinedCode);
+    if (!room || !joinedRole) return cb && cb({ ok: false, error: "Join the case before releasing a seat." });
+    const partnerRole = joinedRole === "A" ? "B" : "A";
+    const partner = room.players[partnerRole];
+    if (!partner || partner.connected) return cb && cb({ ok: false, error: "The partner seat is not abandoned." });
+    if (!partner.releaseEligibleAt || Date.now() < partner.releaseEligibleAt) {
+      return cb && cb({ ok: false, error: "The reconnect window is still open for your partner." });
+    }
+    releaseRole(room, partnerRole);
+    broadcast(room);
+    cb && cb({ ok: true, role: partnerRole });
   });
 
   socket.on("notes:get", (payload = {}, cb) => {
@@ -944,7 +1075,12 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     const room = rooms.get(joinedCode);
     if (!room || !joinedRole) return;
-    if (room.players[joinedRole]) room.players[joinedRole].connected = false;
+    if (room.players[joinedRole] && room.players[joinedRole].socketId === socket.id) {
+      room.players[joinedRole].connected = false;
+      room.players[joinedRole].socketId = null;
+      room.players[joinedRole].disconnectedAt = Date.now();
+      room.players[joinedRole].releaseEligibleAt = Date.now() + DISCONNECTED_SEAT_RELEASE_MS;
+    }
     if (room.phase === "briefing" && room.briefingReady) room.briefingReady[joinedRole] = false;
     if (room.phase === "investigation" && room.callReady) room.callReady[joinedRole] = false;
     if (room.phase === "accusation" && room.accusationDraft) {
@@ -957,11 +1093,15 @@ io.on("connection", (socket) => {
     const codeToClean = joinedCode;
     setTimeout(() => {
       const r = rooms.get(codeToClean);
-      if (r && !(r.players.A && r.players.A.connected) && !(r.players.B && r.players.B.connected)) {
+      if (
+        r &&
+        !roomHasConnectedPlayer(r) &&
+        Date.now() - Number(r.updatedAt || 0) >= roomRetentionMs
+      ) {
         rooms.delete(codeToClean);
         roomStore.scheduleSave(rooms);
       }
-    }, roomStore.mode === "file" ? 24 * 60 * 60 * 1000 : 30 * 60 * 1000);
+    }, roomRetentionMs);
   });
 });
 
@@ -972,6 +1112,7 @@ server.listen(PORT, () => {
 function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(cleanupTimer);
   try {
     roomStore.flush(rooms);
   } catch (error) {
