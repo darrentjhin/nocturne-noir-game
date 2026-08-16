@@ -55,6 +55,9 @@ test("difficulty, Cross-Wire, hunches, and the series debrief remain part of the
   assert.match(htmlSource, /id="ending-debrief"/);
   assert.match(htmlSource, /id="series-hook"/);
   assert.match(cssSource, /\.evidence-workspace\[hidden\]\s*\{\s*display:\s*none;/);
+  assert.match(htmlSource, /id="feedback-form"/);
+  assert.match(appSource, /fetch\("\/api\/feedback"/);
+  assert.match(serverSource, /sanitizeFeedback/);
 });
 
 test("the final theory asks who, where, why, and how", () => {

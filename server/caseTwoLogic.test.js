@@ -66,12 +66,13 @@ test("checkpoint choices validate per role and resolve only as a correct pair", 
 });
 
 test("the split final protocol rejects partial or cross-role answers", () => {
-  assert.deepEqual(sanitizeFinalDraft("A", { priority: "rescue-witness", exit: "bell-tunnel" }), {
+  assert.deepEqual(sanitizeFinalDraft("A", { priority: "rescue-witness", exit: "bell-tunnel", support: "records-01-03" }), {
     priority: "rescue-witness",
-    exit: "bell-tunnel"
+    exit: "bell-tunnel",
+    support: "records-01-03"
   });
-  assert.equal(sanitizeFinalDraft("A", { priority: "rescue-witness" }), null);
-  assert.equal(sanitizeFinalDraft("A", { priority: "commissioner-rook", exit: "bell-tunnel" }), null);
+  assert.equal(sanitizeFinalDraft("A", { priority: "rescue-witness", exit: "bell-tunnel" }), null);
+  assert.equal(sanitizeFinalDraft("A", { priority: "commissioner-rook", exit: "bell-tunnel", support: "records-01-03" }), null);
 });
 
 test("final outcomes reflect both deductions and operational exposure", () => {
@@ -84,6 +85,7 @@ test("final outcomes reflect both deductions and operational exposure", () => {
   room.finalDrafts.A.exit = "service-arcade";
   assert.equal(scoreFinalProtocol(room), "partial");
   room.finalDrafts.B.controller = "clerk-vale";
+  room.finalDrafts.B.purpose = "money-laundering";
   assert.equal(scoreFinalProtocol(room), "failed");
 });
 
@@ -108,7 +110,7 @@ test("the ending reveals the truth, scored decisions, debrief, and File 03 hook"
   room.finalDrafts = JSON.parse(JSON.stringify(caseTwoData.finalProtocol.answers));
   const reveal = caseTwoEndingReveal(room);
   assert.equal(reveal.debrief.durationMs, 120000);
-  assert.equal(reveal.decisionReview.length, 4);
+  assert.equal(reveal.decisionReview.length, 6);
   assert.ok(reveal.decisionReview.every((item) => item.correct));
   assert.equal(reveal.solution.controller, "commissioner-rook");
   assert.equal(reveal.nextHook.title, "The City Without Rain");

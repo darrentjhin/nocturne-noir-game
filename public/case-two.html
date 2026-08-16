@@ -184,6 +184,7 @@
       <p id="final-body"></p>
       <article class="protocol-card">
         <span id="final-role-label"></span>
+        <p id="final-role-brief" class="final-role-brief"></p>
         <div id="final-fields"></div>
       </article>
       <div class="final-status" id="final-status"></div>
@@ -207,6 +208,20 @@
       </section>
       <section class="next-file">
         <span id="next-label"></span><h2 id="next-title"></h2><p id="next-text"></p><strong id="next-status"></strong>
+      </section>
+      <section class="feedback-panel" aria-labelledby="feedback-title">
+        <div class="console-label">PRIVATE PLAYER CHECK-IN</div>
+        <h2 id="feedback-title">How did this operation feel?</h2>
+        <p>Anonymous structured feedback only. Your name, operation code, Radio, notes, and private dispatches are never sent.</p>
+        <form id="feedback-form">
+          <label>Instructions<select name="clarity" required><option value="">Choose…</option><option value="clear">Clear</option><option value="some-confusion">Some confusion</option><option value="confusing">Confusing</option></select></label>
+          <label>Challenge<select name="challenge" required><option value="">Choose…</option><option value="too-easy">Too easy</option><option value="balanced">Balanced</option><option value="too-hard">Too hard</option></select></label>
+          <label>Role balance<select name="roleBalance" required><option value="">Choose…</option><option value="equal">Equal</option><option value="mostly-equal">Mostly equal</option><option value="unequal">Unequal</option></select></label>
+          <label>Ending<select name="ending" required><option value="">Choose…</option><option value="earned">Felt earned</option><option value="mixed">Mixed</option><option value="unearned">Did not feel earned</option></select></label>
+          <label>Continue series?<select name="continueSeries" required><option value="">Choose…</option><option value="yes">Yes</option><option value="maybe">Maybe</option><option value="no">No</option></select></label>
+          <button class="button primary small" type="submit">Send Anonymous Feedback</button>
+        </form>
+        <p class="feedback-status" id="feedback-status" role="status" aria-live="polite"></p>
       </section>
       <div class="ready-panel">
         <div class="ready-lines" id="restart-ready-lines"></div>

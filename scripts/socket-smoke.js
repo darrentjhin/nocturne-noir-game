@@ -58,6 +58,23 @@ function stateAfter(socket, predicate, action, label) {
   });
 }
 
+async function submitFeedback(caseId, role) {
+  const response = await fetch(`${target}/api/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      caseId,
+      role,
+      clarity: "clear",
+      challenge: "balanced",
+      roleBalance: "equal",
+      ending: "earned",
+      continueSeries: "yes"
+    })
+  });
+  if (response.status !== 201) throw new Error(`anonymous feedback endpoint returned ${response.status}`);
+}
+
 async function run() {
   let street = await connect();
   const desk = await connect();
@@ -348,6 +365,7 @@ async function run() {
     ) {
       throw new Error("Correct ending reveal was not delivered");
     }
+    await submitFeedback("the-last-reel", "A");
     await stateAfter(
       street,
       (state) => state.phase === "ending" && state.restartReady.A && !state.restartReady.B,

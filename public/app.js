@@ -896,7 +896,18 @@
     const deductionCount = (state.deductionsSolved || []).length;
     const threadCount = (state.threadsSolved || []).length;
     const operationCount = state.operation && state.operation.solved ? 1 : 0;
-    $("#case-progress").textContent = `${foundTotal}/${totalClues} files · ${threadCount}/${caseData.requiredThreads} threads · ${operationCount}/${caseData.requiredOperations} wire · ${deductionCount}/${caseData.requiredDeductions} clears · ${confrontationCount}/${caseData.requiredConfrontations} breaks`;
+    const progressText = `${foundTotal}/${totalClues} files · ${threadCount}/${caseData.requiredThreads} threads · ${operationCount}/${caseData.requiredOperations} wire · ${deductionCount}/${caseData.requiredDeductions} clears · ${confrontationCount}/${caseData.requiredConfrontations} breaks`;
+    const nextGate = callRequirements(state).find((item) => item.current < item.required);
+    const progress = $("#case-progress");
+    progress.innerHTML = "";
+    progress.setAttribute("aria-label", progressText);
+    const compact = document.createElement("span");
+    compact.className = "progress-compact";
+    compact.textContent = nextGate ? `Next gate · ${nextGate.label} ${nextGate.current}/${nextGate.required}` : "Final call ready";
+    const detailed = document.createElement("span");
+    detailed.className = "progress-detailed";
+    detailed.textContent = progressText;
+    progress.append(compact, detailed);
 
     const callButton = $("#btn-goto-accuse");
     const callUnlocked = canMakeCall(state);
@@ -2442,6 +2453,21 @@
   });
 
   // ---------- Ending ----------
+  function feedbackKey(state) {
+    return `nocturne_feedback:${caseData.id}:${myRole}:${state.completedAt || "ending"}`;
+  }
+
+  function renderFeedback(state) {
+    const form = $("#feedback-form");
+    const status = $("#feedback-status");
+    const key = feedbackKey(state);
+    form.dataset.storageKey = key;
+    let submitted = false;
+    try { submitted = sessionStorage.getItem(key) === "1"; } catch (error) {}
+    form.hidden = submitted;
+    status.textContent = submitted ? "Thank you. Your anonymous player check-in was received." : "";
+  }
+
   function renderEnding(state) {
     const reveal = state.endingReveal;
     if (!reveal || !reveal.ending || !reveal.solution || !reveal.solutionEvidence) return;
@@ -2559,6 +2585,8 @@
       $("#series-hook-status").textContent = hook.status;
     }
 
+    renderFeedback(state);
+
     renderTeamReadiness("#restart-ready-status", state, "restartReady");
     const myReady = !!(state.restartReady && state.restartReady[myRole]);
     const partnerReady = !!(state.restartReady && state.restartReady[myRole === "A" ? "B" : "A"]);
@@ -2566,6 +2594,31 @@
     restart.setAttribute("aria-pressed", myReady ? "true" : "false");
     restart.textContent = myReady ? (partnerReady ? "Reopening Together…" : "Ready — Waiting for Partner") : (partnerReady ? "Join Partner — Play Again" : "I'm Ready to Play Again");
   }
+
+  $("#feedback-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const status = $("#feedback-status");
+    const button = form.querySelector('button[type="submit"]');
+    const fields = Object.fromEntries(new FormData(form).entries());
+    button.disabled = true;
+    status.textContent = "Sending…";
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId: caseData.id, role: myRole, ...fields })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) throw new Error(result.error || "Feedback could not be sent.");
+      try { sessionStorage.setItem(form.dataset.storageKey, "1"); } catch (error) {}
+      form.hidden = true;
+      status.textContent = "Thank you. Your anonymous player check-in was received.";
+    } catch (error) {
+      button.disabled = false;
+      status.textContent = error.message || "Feedback could not be sent. Please try again.";
+    }
+  });
 
   $("#btn-restart").addEventListener("click", () => {
     if (!latestState || latestState.phase !== "ending") return;

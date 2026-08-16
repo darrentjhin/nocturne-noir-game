@@ -107,7 +107,7 @@ function scoreFinalProtocol(room) {
     }
   }
   if (correct === total) return room.alertLevel === 0 ? "clean" : "exposed";
-  if (correct >= 2) return "partial";
+  if (correct >= Math.ceil(total / 2)) return "partial";
   return "failed";
 }
 

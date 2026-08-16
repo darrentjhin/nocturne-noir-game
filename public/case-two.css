@@ -265,6 +265,7 @@ input, select {
 .protocol-topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .protocol-shell > p { color: var(--muted); font: 16px/1.7 var(--type); }
 .protocol-card { padding: 26px; margin: 26px 0 16px; }
+.final-role-brief { margin: 10px 0 4px; color: var(--muted); font: 12px/1.6 var(--type); }
 .protocol-field { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .protocol-field:last-child { border-bottom: 0; }
 .protocol-field h3 { font: 22px var(--display); margin: 0 0 10px; }
@@ -297,6 +298,16 @@ input, select {
 .next-file p { font: 14px/1.65 var(--type); color: #bdb7a2; }
 .ending-shell .ready-panel { border-top: 1px solid var(--line); margin-top: 20px; }
 .ending-shell .ready-panel .text-button { display: block; margin-top: 16px; }
+.feedback-panel { margin: 18px 0; padding: 22px; border: 1px solid var(--line); background: rgba(118,219,207,.025); }
+.feedback-panel h2 { margin: 9px 0; font: 30px var(--display); }
+.feedback-panel > p { color: var(--muted); font: 11px/1.55 var(--type); }
+#feedback-form { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
+#feedback-form[hidden] { display: none; }
+#feedback-form label { display: grid; gap: 6px; color: var(--signal); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+#feedback-form select { min-width: 0; padding: 10px 8px; border: 1px solid var(--line); background: #061012; color: var(--paper); font: 11px var(--type); }
+#feedback-form select:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+#feedback-form .button { grid-column: 1 / -1; width: 100%; }
+.feedback-status { min-height: 18px; color: var(--signal) !important; }
 
 .modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: rgba(1,5,6,.88); }
 .tutorial-card { width: min(590px, 100%); min-height: 400px; padding: 36px; border: 1px solid var(--signal-dim); background: #0a1719; position: relative; }
@@ -360,6 +371,8 @@ input, select {
   .protocol-topline { align-items: flex-start; }
   .notebook-card textarea { min-height: 48vh; }
   .tutorial-card { padding: 26px; }
+  #feedback-form { grid-template-columns: 1fr; }
+  #feedback-form .button { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

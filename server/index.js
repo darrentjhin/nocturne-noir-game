@@ -1,5 +1,6 @@
 const path = require("path");
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -55,6 +56,7 @@ const {
   validStageChoice
 } = require("./caseTwoLogic");
 const { createRoomStore } = require("./roomStore");
+const { sanitizeFeedback } = require("./feedback");
 
 const app = express();
 const server = http.createServer(app);
@@ -63,10 +65,17 @@ const io = new Server(server);
 const PORT = process.env.PORT || 4173;
 const roomStore = createRoomStore(process.env.ROOM_STORE_PATH);
 const rooms = roomStore.load();
+const serviceStartedAt = Date.now();
+const releaseId = String(process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || "local").slice(0, 40);
+const feedbackStorePath = process.env.FEEDBACK_STORE_PATH || (roomStore.path ? path.join(path.dirname(roomStore.path), "nocturne-feedback.jsonl") : null);
+const feedbackWindows = new Map();
+let feedbackCount = 0;
+let shuttingDown = false;
 const clientCaseData = createClientCase(caseData);
 const publicCaseTwoData = createClientCaseTwo(caseTwoData);
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
@@ -86,7 +95,52 @@ app.get("/api/cases/black-sun-ledger", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json(publicCaseTwoData);
 });
-app.get("/api/health", (req, res) => res.json({ ok: true, rooms: rooms.size, persistence: roomStore.mode }));
+app.get("/api/health", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.status(shuttingDown ? 503 : 200).json({
+    ok: !shuttingDown,
+    release: releaseId,
+    uptimeSeconds: Math.floor((Date.now() - serviceStartedAt) / 1000),
+    rooms: rooms.size,
+    persistence: roomStore.mode,
+    feedbackStorage: feedbackStorePath ? "file" : "log",
+    feedbackCount
+  });
+});
+
+app.post("/api/feedback", express.json({ limit: "4kb" }), (req, res) => {
+  const origin = req.get("origin");
+  if (origin) {
+    try {
+      if (new URL(origin).host !== req.get("host")) return res.status(403).json({ ok: false, error: "Feedback must come from this game." });
+    } catch (error) {
+      return res.status(403).json({ ok: false, error: "Feedback origin is invalid." });
+    }
+  }
+  const now = Date.now();
+  const rateKey = req.ip || req.socket.remoteAddress || "unknown";
+  const recent = (feedbackWindows.get(rateKey) || []).filter((timestamp) => now - timestamp < 60 * 60 * 1000);
+  if (recent.length >= 12) return res.status(429).json({ ok: false, error: "Feedback limit reached. Thank you for helping." });
+  const feedback = sanitizeFeedback(req.body);
+  if (!feedback) return res.status(400).json({ ok: false, error: "Complete each feedback field." });
+  recent.push(now);
+  if (!feedbackWindows.has(rateKey) && feedbackWindows.size >= 5000) feedbackWindows.delete(feedbackWindows.keys().next().value);
+  feedbackWindows.set(rateKey, recent);
+  const entry = { id: crypto.randomUUID(), at: new Date(now).toISOString(), release: releaseId, ...feedback };
+  try {
+    if (feedbackStorePath) {
+      fs.mkdirSync(path.dirname(feedbackStorePath), { recursive: true });
+      fs.appendFileSync(feedbackStorePath, `${JSON.stringify(entry)}\n`, "utf8");
+    } else {
+      console.info(`NOCTURNE_FEEDBACK ${JSON.stringify(entry)}`);
+    }
+    feedbackCount += 1;
+    res.status(201).json({ ok: true });
+  } catch (error) {
+    console.error(`NOCTURNE feedback could not be stored: ${error.message}`);
+    res.status(503).json({ ok: false, error: "Feedback storage is temporarily unavailable." });
+  }
+});
 
 // Rooms live in memory by default. Set ROOM_STORE_PATH to keep active cases in
 // an atomic JSON file as well (useful with a mounted Railway volume).
@@ -915,7 +969,6 @@ server.listen(PORT, () => {
   console.log(`NOCTURNE running at http://localhost:${PORT} (${roomStore.mode} room persistence)`);
 });
 
-let shuttingDown = false;
 function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;

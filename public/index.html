@@ -120,7 +120,7 @@
       <span class="case-progress" id="case-progress" aria-live="polite"></span>
       <button class="btn ghost small" id="btn-how-to-play" title="How to play">? How to Play</button>
       <button class="btn ghost small" id="btn-open-files">Case Files</button>
-      <button class="btn ghost small open-notebook" type="button">My Notes</button>
+      <button class="btn ghost small open-notebook" id="btn-header-notes" type="button">My Notes</button>
       <button class="btn ghost small" id="btn-goto-accuse">Make the Call</button>
       <a href="#" class="leave-case" title="Leave this case">Leave</a>
     </div>
@@ -463,6 +463,20 @@
       <h2 id="series-hook-title"></h2>
       <p id="series-hook-text"></p>
       <strong id="series-hook-status"></strong>
+    </section>
+    <section class="feedback-panel" aria-labelledby="feedback-title">
+      <div class="modal-kicker">PRIVATE PLAYER CHECK-IN</div>
+      <h2 id="feedback-title">How did this case feel?</h2>
+      <p>Anonymous structured feedback only. Your name, room code, Radio, notes, and case contents are never sent.</p>
+      <form id="feedback-form">
+        <label>Instructions<select name="clarity" required><option value="">Choose…</option><option value="clear">Clear</option><option value="some-confusion">Some confusion</option><option value="confusing">Confusing</option></select></label>
+        <label>Challenge<select name="challenge" required><option value="">Choose…</option><option value="too-easy">Too easy</option><option value="balanced">Balanced</option><option value="too-hard">Too hard</option></select></label>
+        <label>Role balance<select name="roleBalance" required><option value="">Choose…</option><option value="equal">Equal</option><option value="mostly-equal">Mostly equal</option><option value="unequal">Unequal</option></select></label>
+        <label>Ending<select name="ending" required><option value="">Choose…</option><option value="earned">Felt earned</option><option value="mixed">Mixed</option><option value="unearned">Did not feel earned</option></select></label>
+        <label>Continue series?<select name="continueSeries" required><option value="">Choose…</option><option value="yes">Yes</option><option value="maybe">Maybe</option><option value="no">No</option></select></label>
+        <button class="btn primary small" type="submit">Send Anonymous Feedback</button>
+      </form>
+      <p class="feedback-status" id="feedback-status" role="status" aria-live="polite"></p>
     </section>
     <div class="team-ready-panel ending-ready-panel" aria-labelledby="restart-ready-title">
       <div class="modal-kicker" id="restart-ready-title">REOPEN THE CASE</div>

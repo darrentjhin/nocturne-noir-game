@@ -354,6 +354,16 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .team-ready-panel .btn.primary { margin-top: 14px; }
 .team-ready-help { margin: 9px 0 0; color: var(--ink-dim); font-size: 12px; line-height: 1.45; }
 .ending-ready-panel { margin-top: 26px; }
+.feedback-panel { margin-top: 24px; padding: 22px; border: 1px solid var(--line); background: rgba(255,255,255,.018); }
+.feedback-panel > h2 { margin: 8px 0; }
+.feedback-panel > p { color: var(--ink-dim); font-size: 12px; line-height: 1.55; }
+#feedback-form { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+#feedback-form[hidden] { display: none; }
+#feedback-form label { display: grid; gap: 6px; color: var(--gold); font-size: 10px; letter-spacing: .8px; text-transform: uppercase; }
+#feedback-form select { min-width: 0; padding: 10px 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); color: var(--ink); font: 12px Georgia, serif; }
+#feedback-form select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+#feedback-form .btn { grid-column: 1 / -1; width: 100%; margin-top: 4px; }
+.feedback-status { min-height: 19px; margin-bottom: 0; color: var(--gold) !important; }
 
 /* Game layout */
 .game-header {
@@ -396,6 +406,7 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
 .partner-status.online { color: #6bbf72; }
 .partner-status.offline { color: var(--red-bright); }
 .case-progress { font-size: 11px; color: var(--gold); letter-spacing: .6px; white-space: nowrap; }
+.progress-compact { display: none; }
 .leave-case { color: var(--ink-dim); font-size: 12px; text-decoration: none; border-bottom: 1px dotted var(--ink-dim); }
 .leave-case:hover { color: var(--red-bright); border-color: var(--red-bright); }
 
@@ -1325,7 +1336,8 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
     grid-template-areas:
       "role partner call"
       "progress progress progress"
-      "help files leave";
+      "help files notes"
+      ". . leave";
     gap: 8px;
   }
   #my-role-pill { grid-area: role; }
@@ -1333,10 +1345,13 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
   #case-progress { grid-area: progress; }
   #btn-how-to-play { grid-area: help; }
   #btn-open-files { grid-area: files; }
+  #btn-header-notes { grid-area: notes; }
   #btn-goto-accuse { grid-area: call; }
   .game-header-right .leave-case { grid-area: leave; align-self: center; justify-self: end; }
   .game-header-right .btn.small { padding: 7px 9px; font-size: 11px; letter-spacing: 1px; }
   .case-progress { white-space: normal; line-height: 1.45; font-size: 11px; }
+  .progress-compact { display: inline; }
+  .progress-detailed { display: none; }
   .game-main { padding: 10px; gap: 10px; }
   .leads-panel, .chat-panel, .board-panel { padding: 12px; }
   .corkboard { min-height: var(--mobile-board-height, 340px); flex: none; }
@@ -1355,4 +1370,6 @@ input[type="text"]:focus { outline: none; border-color: var(--red); }
   .ending-contributions { grid-template-columns: 1fr; }
   .ending-debrief, .difficulty-options { grid-template-columns: 1fr; }
   .detective-preview-image { height: 92px; }
+  #feedback-form { grid-template-columns: 1fr; }
+  #feedback-form .btn { grid-column: auto; }
 }

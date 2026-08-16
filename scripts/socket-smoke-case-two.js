@@ -55,6 +55,23 @@ function stateAfter(socket, predicate, action, label) {
   });
 }
 
+async function submitFeedback(caseId, role) {
+  const response = await fetch(`${target}/api/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      caseId,
+      role,
+      clarity: "clear",
+      challenge: "balanced",
+      roleBalance: "equal",
+      ending: "earned",
+      continueSeries: "yes"
+    })
+  });
+  if (response.status !== 201) throw new Error(`anonymous feedback endpoint returned ${response.status}`);
+}
+
 async function run() {
   const street = await connect();
   let desk = await connect();
@@ -227,9 +244,10 @@ async function run() {
       "joint final protocol"
     );
     if (latest.result !== "exposed") throw new Error(`expected exposed ending after one alert, received ${latest.result}`);
-    if (!latest.endingReveal || latest.endingReveal.decisionReview.length !== 4 || !latest.endingReveal.nextHook) {
+    if (!latest.endingReveal || latest.endingReveal.decisionReview.length !== 6 || !latest.endingReveal.nextHook) {
       throw new Error("File 02 ending reveal is incomplete");
     }
+    await submitFeedback(caseTwoData.id, "B");
 
     await stateAfter(
       street,

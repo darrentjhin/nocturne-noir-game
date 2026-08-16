@@ -82,7 +82,7 @@ Budget 45 minutes for play and 10 minutes for separate player notes.
 ### Entry and consent
 
 - Open File 02 from the File 01 cover and confirm the visual identity and instructions are clearly different.
-- Join through its invite link. Each player should receive the same six-step tutorial with their own role label.
+- Join through its invite link. Each player should receive the same seven-step tutorial with their own role label.
 - Choose mismatched modes and confirm readiness stays disabled. Match modes, ready only one player, and confirm the operation does not begin until the second player readies.
 - Confirm The Street sees a field dispatch while The Desk sees a ledger dispatch. Neither player should see the partner's facts or selected answer.
 
@@ -99,12 +99,14 @@ Budget 45 minutes for play and 10 minutes for separate player notes.
 
 ### Split final protocol
 
-- Confirm The Street receives only recovery and exit questions.
-- Confirm The Desk receives only controller and purpose questions.
+- Confirm The Street receives only recovery priority, shutdown-safe exit, and supporting-record questions.
+- Confirm The Desk receives only controller, purpose, and supporting-record questions.
+- Verify Field Record 01 explicitly supports the mechanical route that survives shutdown, and that both record-pair questions can be answered from the four accumulated records.
 - Lock one final half. The other player should see only “sealed,” not the selected values.
 - Seal the second half and confirm both players reach the same ending.
 - Verify a prior alert changes a fully correct ending from “Silent Extraction” to “The City Hears the Alarm.”
-- Confirm the ending explains the truth, reviews all four submitted decisions, reports team activity, and introduces File 03.
+- Confirm the ending explains the truth, reviews all six submitted decisions, reports team activity, and introduces File 03.
+- Submit the anonymous player check-in and confirm it never asks for a name, operation code, written comment, Radio content, or private notes.
 - Ready replay on one device only; the ending must remain until the partner also agrees.
 
 ### File 02 usability checks

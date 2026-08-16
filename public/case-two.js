@@ -552,6 +552,7 @@
     $("#final-body").textContent = caseData.finalProtocol.body;
     const brief = caseData.finalProtocol.roleBrief;
     $("#final-role-label").textContent = brief.label;
+    $("#final-role-brief").textContent = brief.brief;
     const fields = $("#final-fields");
     fields.innerHTML = "";
     brief.fields.forEach((field) => {
@@ -602,6 +603,21 @@
     return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
   }
 
+  function feedbackKey(state) {
+    return `nocturne_feedback:${CASE_ID}:${myRole}:${state.completedAt || "ending"}`;
+  }
+
+  function renderFeedback(state) {
+    const form = $("#feedback-form");
+    const status = $("#feedback-status");
+    const key = feedbackKey(state);
+    form.dataset.storageKey = key;
+    let submitted = false;
+    try { submitted = sessionStorage.getItem(key) === "1"; } catch (error) {}
+    form.hidden = submitted;
+    status.textContent = submitted ? "Thank you. Your anonymous operation check-in was received." : "";
+  }
+
   function renderEnding(state) {
     showScreen("screen-ending");
     const reveal = state.endingReveal;
@@ -632,6 +648,7 @@
     $("#next-title").textContent = reveal.nextHook.title;
     $("#next-text").textContent = reveal.nextHook.text;
     $("#next-status").textContent = reveal.nextHook.status;
+    renderFeedback(state);
     renderReadyLines("#restart-ready-lines", state.restartReady);
     const mine = !!state.restartReady[myRole];
     const partner = !!state.restartReady[myRole === "A" ? "B" : "A"];
@@ -639,6 +656,31 @@
     restart.disabled = mine;
     restart.textContent = mine ? (partner ? "Reopening together…" : "Ready · waiting for partner") : "I'm ready to run it again";
   }
+
+  $("#feedback-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const status = $("#feedback-status");
+    const button = form.querySelector('button[type="submit"]');
+    const fields = Object.fromEntries(new FormData(form).entries());
+    button.disabled = true;
+    status.textContent = "Sending…";
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId: CASE_ID, role: myRole, ...fields })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) throw new Error(result.error || "Feedback could not be sent.");
+      try { sessionStorage.setItem(form.dataset.storageKey, "1"); } catch (error) {}
+      form.hidden = true;
+      status.textContent = "Thank you. Your anonymous operation check-in was received.";
+    } catch (error) {
+      button.disabled = false;
+      status.textContent = error.message || "Feedback could not be sent. Please try again.";
+    }
+  });
 
   $("#btn-restart").addEventListener("click", () => socket.emit("case2:restart:ready", { ready: true }));
 

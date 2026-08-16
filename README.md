@@ -32,8 +32,9 @@ This is a different game, not a reskin of File 01:
 - A wrong pair resets both choices and raises a shared alert level that changes the ending.
 - A solved checkpoint reveals a shared field record, but the next location opens only after both players acknowledge it.
 - Each detective has a private autosaving notebook that survives reconnects without exposing its contents to the partner; crucial Radio transmissions can be filed into it directly.
-- The finale is split: The Street seals the physical recovery plan while The Desk identifies the controller and the network's purpose.
+- The finale is split into six evidence-based decisions: The Street seals the recovery priority, shutdown-safe route, and supporting records while The Desk identifies the controller, purpose, and the records proving both.
 - Tutorial, difficulty, checkpoint advance, final resolution, and replay all preserve two-player consent.
+- The ending offers a five-field anonymous check-in about clarity, challenge, role balance, payoff, and interest in the next file; no name, room code, Radio content, notes, or private case data is collected.
 
 File 02 is available from the Case Files selector on the File 01 cover or directly at `/case-two.html`.
 
@@ -63,6 +64,8 @@ npm run smoke:case2 -- http://localhost:4173
 
 The File 01 smoke completes every clue, interview prerequisite, contradiction, theory, deduction, Cross-Wire half, mutual transition, accusation, ending, notebook privacy, and replay. The File 02 smoke tests wrong-case routing, mismatched difficulty, private role payloads and notebooks, a recoverable paired failure, all four checkpoints, mutual acknowledgements, the split final protocol, ending, and replay.
 
+GitHub Actions runs the same locked install, checks, production dependency audit, health probe, and both complete two-player smoke paths on every pull request and every push to `main`. Railway uses `railway.json` for its start command, health gate, graceful overlap/draining window, and restart policy.
+
 See `PLAYTEST.md` for the human two-device QA pass.
 
 ## Optional durable rooms
@@ -73,7 +76,7 @@ Rooms stay in memory by default. To let an active case survive a server restart,
 ROOM_STORE_PATH=/data/nocturne-rooms.json npm start
 ```
 
-On Railway, mount a volume at `/data` and set `ROOM_STORE_PATH=/data/nocturne-rooms.json`. Both case formats are normalized on restore, stale sockets are removed, resume tokens are preserved, and abandoned rooms expire after 24 hours.
+On Railway, mount a volume at `/data` and set `ROOM_STORE_PATH=/data/nocturne-rooms.json`. Set `FEEDBACK_STORE_PATH=/data/nocturne-feedback.jsonl` to retain the anonymous structured check-ins on the same volume. Both case formats are normalized on restore, stale sockets are removed, resume tokens are preserved, and abandoned rooms expire after 24 hours.
 
 ## Project structure
 

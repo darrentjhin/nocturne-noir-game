@@ -53,7 +53,7 @@ module.exports = {
     },
     {
       title: "Split the final protocol",
-      body: "At the vault, The Street chooses the physical recovery plan while The Desk identifies the controller and purpose. Both final halves remain sealed until you lock them."
+      body: "At the vault, The Street chooses the physical recovery plan and the records that support it. The Desk identifies the controller, the purpose, and its supporting records. Re-read all four shared Field Records; both private halves remain sealed until you lock them."
     }
   ],
   stages: [
@@ -104,7 +104,7 @@ module.exports = {
       outcome: {
         title: "Unmonitored access established",
         text: "The cobalt door opens into a cable stair while the ghost circuit masks the movement as dormant Line VI traffic.",
-        evidence: "FIELD RECORD 01 · Saint Orison was kept operational off-book through a municipal maintenance circuit."
+        evidence: "FIELD RECORD 01 · Saint Orison was kept operational off-book through a municipal maintenance circuit. Its emergency schematic warns that powered routes seal during a correction shutdown; the mechanical bell tunnel bypasses the circuit and reaches the storm drain."
       }
     },
     {
@@ -265,6 +265,7 @@ module.exports = {
     roles: {
       A: {
         label: "FIELD PROTOCOL · THE STREET",
+        brief: "Use the shared field records—not instinct alone—to choose who leaves first, which route survives shutdown, and which records prove that plan.",
         fields: [
           {
             id: "priority",
@@ -283,11 +284,21 @@ module.exports = {
               { id: "bell-tunnel", label: "Mechanical bell tunnel" },
               { id: "ward-elevator", label: "Ward elevator" }
             ]
+          },
+          {
+            id: "support",
+            prompt: "Which field records support the rescue and extraction plan?",
+            choices: [
+              { id: "records-01-03", label: "Records 01 + 03 · shutdown route and living witness" },
+              { id: "records-02-04", label: "Records 02 + 04 · erasure process and controller" },
+              { id: "records-01-04", label: "Records 01 + 04 · shutdown route and controller" }
+            ]
           }
         ]
       },
       B: {
         label: "ANALYSIS PROTOCOL · THE DESK",
+        brief: "Use the shared field records to identify the network's authority, its real purpose, and the record pair that proves both conclusions.",
         fields: [
           {
             id: "controller",
@@ -306,13 +317,22 @@ module.exports = {
               { id: "witness-erasure", label: "Erases protected witnesses from civic identity systems" },
               { id: "evidence-destruction", label: "Burns physical police evidence" }
             ]
+          },
+          {
+            id: "support",
+            prompt: "Which field records prove the controller and purpose together?",
+            choices: [
+              { id: "records-02-04", label: "Records 02 + 04 · witness erasure and Rook's authority" },
+              { id: "records-01-03", label: "Records 01 + 03 · maintenance route and living witness" },
+              { id: "records-03-04", label: "Records 03 + 04 · living witness and Rook's authority" }
+            ]
           }
         ]
       }
     },
     answers: {
-      A: { priority: "rescue-witness", exit: "bell-tunnel" },
-      B: { controller: "commissioner-rook", purpose: "witness-erasure" }
+      A: { priority: "rescue-witness", exit: "bell-tunnel", support: "records-01-03" },
+      B: { controller: "commissioner-rook", purpose: "witness-erasure", support: "records-02-04" }
     }
   },
   endings: {

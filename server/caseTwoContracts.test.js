@@ -48,6 +48,9 @@ test("File 02 supports separate-device invitations, reconnect, radio, and tutori
   assert.match(app, /radio-note-save/);
   assert.match(app, /appendNotebookLine/);
   assert.match(html, /PRIVATE · DO NOT ASSUME PARTNER CAN SEE/);
+  assert.match(html, /id="feedback-form"/);
+  assert.match(app, /fetch\("\/api\/feedback"/);
+  assert.match(html, /id="final-role-brief"/);
 });
 
 test("File 02 stays usable on narrow screens and respects hidden state", () => {
