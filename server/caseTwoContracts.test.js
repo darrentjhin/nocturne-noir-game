@@ -57,6 +57,9 @@ test("File 02 stays usable on narrow screens and respects hidden state", () => {
   assert.match(css, /@media \(max-width: 680px\)/);
   assert.match(css, /\[hidden\]\s*\{\s*display:\s*none !important;/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(html, /id="operation-guide-action"/);
+  assert.match(app, /function renderOperationGuide/);
+  assert.match(css, /body\.modal-open\s*\{\s*overflow:\s*hidden;/);
 });
 
 test("both case themes resolve every CSS custom property", () => {

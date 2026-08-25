@@ -138,43 +138,29 @@
   const tutorialSteps = [
     {
       icon: "🕵️",
-      title: "You only get half the case",
-      body: "You and your partner each receive this guide. The Street reconstructs physical scenes; The Desk questions witnesses and obtains records. Neither player can solve the case alone, so use the Radio Line to compare exact names, times, evidence IDs, and codes."
-    },
-    {
-      icon: "🗒️",
-      title: "Keep a private working theory",
-      body: "My Notes is visible only to you and autosaves with your role. Use it for theories and questions; use the Radio Line for anything your partner must know. You can save an important Radio message straight into your notebook."
+      title: "The one rule",
+      body: "Your screens are different. Tell your partner exact names, times, evidence IDs, and codes over the Radio Line or voice. Never assume they can see what you see."
     },
     {
       icon: "🔎",
-      title: "The Street tests a theory",
-      body: "At each physical scene, choose a reconstruction focus before examining evidence: access, mechanism, timeline, identity, or staging. The wrong focus gives useful feedback and never destroys a lead. Completed field notes open deeper searches."
+      title: "Your job",
+      bodyA: "You are The Street. Open Locations, choose a focus, then try an available approach. The wrong focus gives feedback and does not destroy evidence.",
+      bodyB: "You are The Desk. Open People, choose how to ask, then click an available question. A poor approach gives feedback and never locks the case."
     },
     {
-      icon: "🎙️",
-      title: "The Desk chooses how to ask",
-      body: "Choose Rapport, Direct, Pressure, or Present Evidence before asking. Read the subject's demeanor and the kind of question you are asking. A poor approach lowers composure but never locks the interview. Earlier answers and partner evidence unlock sharper lines."
-    },
-    {
-      icon: "⚖️",
-      title: "Break the contradiction",
-      body: "A suspicious answer is not proof. Return to a witness with evidence that contradicts their statement. You must break two important contradictions before the final call becomes available."
+      icon: "⏳",
+      title: "Waiting does not mean stop",
+      body: "Active means you can do it now. Waiting or Locked means another lead or your partner must provide something first. Try another Active lead, send a Radio request, or review your files."
     },
     {
       icon: "🧵",
-      title: "Build threads, then eliminate",
-      body: "Case Threads ask you to assign several filed clues to distinct roles in the timeline, money trail, and reel route. The Evidence Board has a narrower job: connect proof that clears the two strongest alternative suspects. Unsupported theories are rejected without penalty."
-    },
-    {
-      icon: "📡",
-      title: "Run the Cross-Wire together",
-      body: "Late in the case, each detective receives a different copy of a dock-route record. Stay on the Radio Line: one of you must identify the courier line and the other must reconstruct the route digits. Both halves must be correct before the final call."
+      title: "Clues become a theory",
+      body: "File evidence as you find it. Later, Case Threads organize what happened, the Evidence Board rules out alternatives, and witness contradictions are broken with proof. Wrong attempts do not end the case."
     },
     {
       icon: "☎️",
-      title: "Advance only together",
-      body: "First agree on a difficulty, then both ready the investigation. Later, once you have enough evidence, three Case Threads, one Cross-Wire, two suspect eliminations, and two broken contradictions, each of you must agree to open the final call and ready the same who, where, why, and how theory."
+      title: "Team steps wait for both",
+      body: "Starting, Cross-Wire, the final call, and replay require both detectives. If your button says Waiting for Partner, your choice is saved. Keep investigating or reviewing until they act."
     }
   ];
   let tutorialStep = 0;
@@ -183,7 +169,7 @@
     const s = tutorialSteps[tutorialStep];
     $("#tutorial-icon").textContent = s.icon;
     $("#tutorial-title").textContent = s.title;
-    $("#tutorial-body").textContent = s.body;
+    $("#tutorial-body").textContent = myRole === "A" && s.bodyA ? s.bodyA : myRole === "B" && s.bodyB ? s.bodyB : s.body;
     $("#tutorial-step-label").textContent = `Step ${tutorialStep + 1} of ${tutorialSteps.length} · ${myRole && caseData ? caseData.roles[myRole].name : "Both detectives"}`;
     $("#tutorial-role-label").textContent = "HOW TO PLAY · YOUR OWN COPY";
     $("#tutorial-dots").innerHTML = tutorialSteps
@@ -592,6 +578,7 @@
         modal._returnFocus.focus();
       }
     });
+    document.body.classList.toggle("modal-open", !!topActiveModal());
   });
   $$(".modal-overlay").forEach((modal) => modalObserver.observe(modal, { attributes: true, attributeFilter: ["class"] }));
 
@@ -1047,7 +1034,8 @@
     maybeShowUnlockBanner(state);
 
     $("#leads-title").textContent = myRole === "A" ? "Locations" : "People";
-    renderObjectives(state);
+    const objectives = renderObjectives(state);
+    renderPlayerGuide(state, objectives);
     const leadsList = $("#leads-list");
     leadsList.innerHTML = "";
     const myFound = state.found[myRole];
@@ -1189,6 +1177,44 @@
       item.textContent = objective.text;
       list.appendChild(item);
     });
+    return objectives;
+  }
+
+  function renderPlayerGuide(state, objectives) {
+    const partnerRole = myRole === "A" ? "B" : "A";
+    const partner = state.players[partnerRole];
+    const myCallReady = !!(state.callReady && state.callReady[myRole]);
+    const partnerCallReady = !!(state.callReady && state.callReady[partnerRole]);
+    const myWireLocked = !!(state.operation && state.operation.submissions && state.operation.submissions[myRole]);
+    const partnerWireLocked = !!(state.operation && state.operation.submissions && state.operation.submissions[partnerRole]);
+    const action = $("#player-guide-action");
+    const status = $("#player-guide-status");
+
+    if (!partner || !partner.connected) {
+      action.textContent = "Keep investigating while your partner reconnects.";
+      status.textContent = "Your progress is safe. Team actions pause, but Locations, People, Files, and Notes still work.";
+      return;
+    }
+    if (myCallReady) {
+      action.textContent = `You are ready for the final call. Wait for ${partner.name}.`;
+      status.textContent = "Your readiness is saved. You can review files or click Make the Call again to withdraw.";
+      return;
+    }
+    if (partnerCallReady) {
+      action.textContent = `${partner.name} is ready for the final call.`;
+      status.textContent = "Talk through who, where, why, and how. Press Make the Call when you agree.";
+      return;
+    }
+    if (myWireLocked && !partnerWireLocked) {
+      action.textContent = "Your Cross-Wire half is locked. Ask your partner to finish theirs.";
+      status.textContent = "Your answer is saved. You may keep reviewing other evidence while you wait.";
+      return;
+    }
+    const next = (objectives || []).find((objective) => !objective.waiting) || (objectives || [])[0];
+    action.textContent = next ? next.text : "Open an Active lead and follow one available action.";
+    status.textContent = next && next.waiting
+      ? "That step needs information from your partner. Send a Radio request or try another lead."
+      : "Open the named Location or Person. The panel will tell you exactly what can be done now.";
   }
 
   function showUnlockBanner(message) {
@@ -1467,6 +1493,7 @@
   }
 
   function openScene(lead) {
+    const resetScroll = currentSceneLeadId !== lead.id;
     openedLeadIds.add(lead.id);
     if (latestState) renderInvestigation(latestState);
     if (lead.interrogation) {
@@ -1477,9 +1504,14 @@
     currentInterviewPersonId = null;
     renderScene(lead, latestState);
     $("#scene-modal").classList.add("active");
+    if (resetScroll) window.requestAnimationFrame(() => {
+      $("#scene-modal").scrollTop = 0;
+      const layout = document.querySelector(".fieldwork-layout");
+      if (layout) layout.scrollTop = 0;
+    });
     if (!contextualTipsShown.has("fieldwork")) {
       contextualTipsShown.add("fieldwork");
-      showUnlockBanner("🔎 Start with an available approach. Completed field notes can open deeper searches.");
+      showUnlockBanner("🔎 Choose one focus, then one available action. Waiting actions need more information.");
     }
   }
 
@@ -1489,12 +1521,18 @@
   });
 
   function openInterview(person) {
+    const resetScroll = currentInterviewPersonId !== person.id;
     currentSceneLeadId = null;
     currentInterviewPersonId = person.id;
     if (!interviewApproaches[person.id]) interviewApproaches[person.id] = "direct";
     $("#scene-modal").classList.remove("active");
     renderInterview(person, latestState);
     $("#interview-modal").classList.add("active");
+    if (resetScroll) window.requestAnimationFrame(() => {
+      $("#interview-modal").scrollTop = 0;
+      const layout = document.querySelector(".interrogation-layout");
+      if (layout) layout.scrollTop = 0;
+    });
     if (!contextualTipsShown.has("interview")) {
       contextualTipsShown.add("interview");
       showUnlockBanner("🎙️ Choose how to ask, not only what to ask. Demeanor, question type, and evidence all matter.");
@@ -2094,7 +2132,7 @@
     emptyState.hidden = allFoundIds.length >= 2;
     if (allFoundIds.length === 0) {
       emptyState.querySelector("strong").textContent = "No evidence filed yet";
-      emptyState.querySelector("span").textContent = "Follow a Next Move. Your first filed clue will appear here.";
+      emptyState.querySelector("span").textContent = "Follow “What to do now.” Your first filed clue will appear here.";
     } else if (allFoundIds.length === 1) {
       emptyState.querySelector("strong").textContent = "One file is not a deduction";
       emptyState.querySelector("span").textContent = "Find at least one more piece of evidence before testing a connection.";

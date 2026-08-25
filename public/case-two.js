@@ -25,6 +25,11 @@
   const BASE_TITLE = document.title;
   const finalDraft = {};
 
+  function syncModalState() {
+    const open = $$(".modal").some((modal) => !modal.hidden);
+    document.body.classList.toggle("modal-open", open);
+  }
+
   function showScreen(id) {
     $$(".screen").forEach((screen) => screen.classList.toggle("active", screen.id === id));
     const active = $("#" + id);
@@ -202,6 +207,7 @@
 
   function closeExitModal() {
     $("#exit-modal").hidden = true;
+    syncModalState();
   }
 
   function releaseSeatAndLeave() {
@@ -231,6 +237,7 @@
 
   $$(".leave-operation").forEach((button) => button.addEventListener("click", () => {
     $("#exit-modal").hidden = false;
+    syncModalState();
     $("#exit-reason").focus();
   }));
   $("#exit-cancel").addEventListener("click", closeExitModal);
@@ -303,6 +310,7 @@
     const loadId = ++notebookLoadId;
     $("#notebook-text").disabled = true;
     $("#notebook-modal").hidden = false;
+    syncModalState();
     updateNotebookMeta("Loading private page…", "saving");
     socket.emit("notes:get", {}, (response) => {
       if (loadId !== notebookLoadId || $("#notebook-modal").hidden) return;
@@ -320,6 +328,7 @@
     flushNotebookSave();
     $("#notebook-text").disabled = false;
     $("#notebook-modal").hidden = true;
+    syncModalState();
   }
 
   function appendNotebookLine(line, control) {
@@ -361,7 +370,8 @@
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if (!$("#notebook-modal").hidden) closeNotebook();
-    else if (!$("#tutorial-modal").hidden) $("#tutorial-modal").hidden = true;
+    else if (!$("#tutorial-modal").hidden) closeTutorial();
+    else if (!$("#exit-modal").hidden) closeExitModal();
   });
 
   function tryResume(showLobby) {
@@ -576,6 +586,7 @@
     const partnerRole = myRole === "A" ? "B" : "A";
     const partner = state.players[partnerRole];
     $("#partner-status").textContent = partner && partner.connected ? `${partner.name} on line` : "Partner reconnecting";
+    renderOperationGuide(state, partnerRole, partner);
     renderCheckpointTrack(state);
     $("#stage-number").textContent = stage.number;
     $("#stage-title").textContent = stage.title;
@@ -628,6 +639,37 @@
     }
     renderRadio(state);
     renderRecords(state);
+  }
+
+  function renderOperationGuide(state, partnerRole, partner) {
+    const action = $("#operation-guide-action");
+    const status = $("#operation-guide-status");
+    if (!partner || !partner.connected) {
+      action.textContent = "Wait for your partner to reconnect.";
+      status.textContent = "Your progress is safe. Review your dispatch or Notes; joint choices pause until both detectives are online.";
+      return;
+    }
+    if (state.stageResolved) {
+      const acknowledged = state.stageAcknowledged || {};
+      const mine = !!acknowledged[myRole];
+      const theirs = !!acknowledged[partnerRole];
+      action.textContent = mine ? `Checkpoint acknowledged. Wait for ${partner.name}.` : "Read the shared result, then acknowledge it.";
+      status.textContent = mine && !theirs ? "Your acknowledgement is saved. The next checkpoint opens after your partner acknowledges too." : "Both detectives must acknowledge before the operation advances.";
+      return;
+    }
+    const locks = state.stageLocks || {};
+    if (locks[myRole]) {
+      action.textContent = `Your answer is locked. Wait for ${partner.name}.`;
+      status.textContent = "Your choice is saved. Use Radio if your partner needs an exact detail from your dispatch.";
+      return;
+    }
+    if (locks[partnerRole]) {
+      action.textContent = `${partner.name} has locked an answer. Choose and lock yours.`;
+      status.textContent = "Check that your answer matches the exact fact your partner reported before locking.";
+      return;
+    }
+    action.textContent = "Read your dispatch, ask for the missing fact, then choose.";
+    status.textContent = "Do not guess from your screen alone. Your partner holds the other half of the checkpoint.";
   }
 
   $("#btn-lock-stage").addEventListener("click", () => {
@@ -841,10 +883,12 @@
     tutorialIndex = index || 0;
     renderTutorial();
     $("#tutorial-modal").hidden = false;
+    syncModalState();
   }
 
   function closeTutorial() {
     $("#tutorial-modal").hidden = true;
+    syncModalState();
     try { sessionStorage.setItem(`nocturne_case2_tutorial:${myCode}:${myRole}`, "1"); } catch (error) {}
   }
 

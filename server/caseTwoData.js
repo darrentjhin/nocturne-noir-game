@@ -28,32 +28,24 @@ module.exports = {
   },
   tutorial: [
     {
-      title: "Different screens, one operation",
-      body: "The Street sees the building. The Desk sees the ledger and ghost circuit. Never assume your partner has the detail shown on your private dispatch."
+      title: "The one rule",
+      body: "Your screens are different. Read exact labels, numbers, symbols, and rules to your partner. Never assume they can see your private dispatch."
     },
     {
-      title: "Describe before you decide",
-      body: "Each checkpoint asks both detectives a different question. Read your private facts aloud on the Radio Line, then ask for the exact missing fact you need. Save crucial transmissions into your private Notes when you will need them later."
+      title: "Three steps at every checkpoint",
+      body: "Read your dispatch. Ask your partner for the missing fact. Choose and lock your answer only after the two private copies agree."
     },
     {
-      title: "Know what stays private",
-      body: "Notes autosave to your detective role and survive reconnects, but your partner cannot read them. Anything they must act on belongs on the Radio Line; any Radio message can be saved back into your private notebook."
+      title: "Waiting does not mean stuck",
+      body: "If your button says Waiting, your answer is saved and your partner still needs to act. Use Radio, review the dispatch, or save useful details in private Notes."
     },
     {
-      title: "Lock independently",
-      body: "Your choice stays private. Once both halves are locked, the server tests the pair together. A wrong pair resets both choices and raises the alert level."
+      title: "Wrong pairs are recoverable",
+      body: "Both choices stay private until locked. A wrong pair resets both answers and raises the alert, but the operation continues. Compare the exact facts before trying again."
     },
     {
-      title: "Advance together",
-      body: "A solved checkpoint reveals a shared field record. Both detectives must acknowledge it before the next location opens."
-    },
-    {
-      title: "Protect the operation",
-      body: "The alert meter changes the ending. You can always finish the case, but careless attempts may expose the detectives and cost the clean extraction."
-    },
-    {
-      title: "Split the final protocol",
-      body: "At the vault, The Street chooses the physical recovery plan and the records that support it. The Desk identifies the controller, the purpose, and its supporting records. Re-read all four shared Field Records; both private halves remain sealed until you lock them."
+      title: "Team steps wait for both",
+      body: "Starting, checkpoint results, the final protocol, and replay require both detectives. Your screen always shows whether you should choose, wait, or acknowledge."
     }
   ],
   stages: [

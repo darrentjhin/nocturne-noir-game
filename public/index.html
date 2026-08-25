@@ -111,9 +111,9 @@
     <div class="briefing-body" id="briefing-body"></div>
     <div class="role-callout" id="role-callout"></div>
     <ul class="preflight-checklist" aria-label="Before beginning">
-      <li>Keep this screen private—your partner receives different evidence.</li>
-      <li>Use the Radio Line or voice to exchange exact names, times, IDs, and codes.</li>
-      <li>Allow 50–70 minutes; closing the tab safely reserves your role for reconnecting.</li>
+      <li>Your screen is private. Your partner sees different information.</li>
+      <li>Tell each other exact names, times, evidence IDs, and codes.</li>
+      <li>If something says Waiting, try another active lead while your partner works.</li>
     </ul>
     <div class="team-ready-panel" aria-labelledby="briefing-ready-title">
       <fieldset class="difficulty-panel">
@@ -155,8 +155,13 @@
   <main class="game-main">
     <section class="leads-panel">
       <h2 id="leads-title">Leads</h2>
+      <aside class="player-guide" aria-labelledby="player-guide-title" aria-live="polite">
+        <span id="player-guide-title">WHAT TO DO NOW</span>
+        <strong id="player-guide-action">Open an active lead.</strong>
+        <small id="player-guide-status">Active means you can act now. Waiting means another clue or your partner must move first.</small>
+      </aside>
       <aside class="objective-card" aria-labelledby="objective-title">
-        <h3 id="objective-title">Next moves</h3>
+        <h3 id="objective-title">More things you can do</h3>
         <div id="objective-list" class="objective-list"></div>
       </aside>
       <aside id="adaptive-hint" class="adaptive-hint" hidden>
@@ -185,7 +190,7 @@
           <svg id="link-svg"></svg>
           <div id="board-empty" class="board-empty" aria-live="polite">
             <strong>No evidence filed yet</strong>
-            <span>Follow a Next Move. Your first filed clue will appear here.</span>
+            <span>Follow “What to do now.” Your first filed clue will appear here.</span>
           </div>
         </div>
       </div>
@@ -270,6 +275,7 @@
         <p id="interview-opening" class="interview-opening"></p>
       </aside>
       <section class="interrogation-workspace">
+        <div class="modal-plain-guide"><strong>Do this here:</strong> Choose how to ask, then click one available question. A locked question tells you what to find first; try another person while waiting.</div>
         <div class="interview-section-head">
           <div>
             <div class="modal-kicker">INTERVIEW RECORD</div>
@@ -324,6 +330,7 @@
         <p class="scene-opening" id="scene-modal-opening"></p>
       </aside>
       <section class="fieldwork-workspace">
+        <div class="modal-plain-guide"><strong>Do this here:</strong> Pick one focus, then choose an available approach. If an item is waiting, ask The Desk for the named clue or try another location.</div>
         <div class="fieldwork-section-head">
           <div>
             <div class="modal-kicker">SCENE RECONSTRUCTION</div>

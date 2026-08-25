@@ -73,7 +73,7 @@ test("the final theory asks who, where, why, and how", () => {
 test("invite, reconnect, tutorial, and ending recap paths remain present", () => {
   assert.match(appSource, /url\.searchParams\.set\("case", code\)/);
   assert.match(appSource, /socket\.on\("disconnect"/);
-  assert.match(appSource, /You only get half the case/);
+  assert.match(appSource, /Waiting does not mean stop/);
   assert.match(appSource, /reveal\.solutionEvidence\.slice\(0, 4\)\.forEach/);
   assert.match(htmlSource, /id="ending-evidence-grid"/);
   assert.match(htmlSource, /id="ending-reconstruction"/);
@@ -121,6 +121,12 @@ test("fieldwork, case-file sharing, and board guidance remain available", () => 
   assert.match(htmlSource, /id="link-status"[^>]*aria-live="polite"/);
   assert.match(appSource, /function shareEvidence/);
   assert.match(appSource, /class="pin-id">\$\{clueId\}/);
+  assert.match(htmlSource, /id="player-guide-action"/);
+  assert.match(htmlSource, /class="modal-plain-guide"/);
+  assert.match(cssSource, /body\.modal-open\s*\{\s*overflow:\s*hidden;/);
+  assert.match(cssSource, /\.fieldwork-layout\s*\{[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(cssSource, /\.interrogation-layout\s*\{[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(appSource, /function renderPlayerGuide/);
 });
 
 test("the Radio Line composer remains compact and prominent in the investigation", () => {
